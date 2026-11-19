@@ -3,6 +3,23 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [0.2.1] – 2026-11-19
+
+### Neu
+- Einkaufszettel mit großen Checkboxen, gemeinsam für beide und synchronisiert
+- Artikel per Eingabefeld hinzufügen; das Feld bleibt fokussiert, Menge und Notiz optional
+- Abgehakte Artikel rutschen animiert in den Bereich „Erledigt“ (zuletzt abgehakter oben), Haken entfernen holt sie ans Ende der offenen Artikel zurück
+- Bereich „Erledigt“ einklappbar, „Erledigte entfernen“ mit Bestätigung
+- Vorschläge beim Tippen aus früheren Artikeln; ein abgehakter Artikel wird wieder geöffnet statt doppelt angelegt
+- Offene Artikel per Drag and Drop am Griff sortieren
+- Wischen nach links löscht einen Artikel, mit „Rückgängig“
+- Artikel antippen zum Bearbeiten (Name, Menge, Notiz)
+- Mehrere Listen (z. B. „Supermarkt“, „Drogerie“): anlegen, umbenennen, löschen
+- Solange der Einkaufszettel offen ist, wird alle 10 Sekunden synchronisiert
+
+### Behoben
+- Datum und Uhrzeit überlappen beim Anlegen einer Aufgabe auf dem Handy nicht mehr
+
 ## [0.2.0] – 2026-11-19
 
 ### Neu
