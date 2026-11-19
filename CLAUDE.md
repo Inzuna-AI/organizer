@@ -413,13 +413,15 @@ Nicht jedes Feature braucht jede Datei. Kleine Features dürfen schlanker sein.
 
 Hinweise zur Umsetzung: Räume und Personen werden unter Einstellungen → Verwalten gepflegt (`/einstellungen/raeume`, `/einstellungen/personen`). Status-Filter = Ansichten „Geplant / Inbox / Erledigt“ unter `/aufgaben?ansicht=…`. Kleine Bedien-Einstellungen pro Gerät (Filter, „Meine/Alle“) liegen über `loadPref`/`savePref` in `lib/storage.ts`.
 
-### Phase 2b: Einkaufszettel (`v0.2.1`)
-- [ ] Liste mit Checkboxen, Hinzufügen per Eingabefeld
-- [ ] Abgehakte Artikel ans Listenende (mit Animation), Haken entfernen holt sie zurück
-- [ ] Bereich „Erledigt“ einklappbar, „Erledigte entfernen“
-- [ ] Vorschläge aus früheren Artikeln
-- [ ] Sortieren per Drag and Drop, Löschen per Wischen mit „Rückgängig“
-- [ ] Mehrere Listen
+### Phase 2b: Einkaufszettel (`v0.2.1`, abgeschlossen am 19.11.2026)
+- [x] Liste mit Checkboxen, Hinzufügen per Eingabefeld
+- [x] Abgehakte Artikel ans Listenende (mit Animation), Haken entfernen holt sie zurück
+- [x] Bereich „Erledigt“ einklappbar, „Erledigte entfernen“
+- [x] Vorschläge aus früheren Artikeln
+- [x] Sortieren per Drag and Drop, Löschen per Wischen mit „Rückgängig“
+- [x] Mehrere Listen
+
+Hinweise zur Umsetzung: Vorschläge stammen auch aus bereits entfernten Artikeln (Tombstones, bis sie nach 30 Tagen bereinigt werden). Gibt es keine Liste, legt das erste Hinzufügen automatisch „Einkauf“ an. Während der Einkaufszettel offen ist, setzt die Seite das Polling über `setSyncInterval` auf 10 s.
 
 ### Phase 3: Kalender
 - [ ] Tag-, Wochen- und Monatsansicht (FullCalendar)
