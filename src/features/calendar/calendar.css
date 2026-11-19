@@ -1,0 +1,55 @@
+/* FullCalendar an das App-Design anpassen (gilt nur innerhalb .organizer-calendar) */
+.organizer-calendar .fc {
+  --fc-border-color: #e2e8f0;
+  --fc-today-bg-color: rgb(13 148 136 / 0.08);
+  --fc-now-indicator-color: #dc2626;
+  --fc-event-border-color: transparent;
+  --fc-page-bg-color: #ffffff;
+  font-size: 0.875rem;
+}
+
+.organizer-calendar .fc .fc-col-header-cell-cushion,
+.organizer-calendar .fc .fc-daygrid-day-number {
+  color: #334155;
+  text-decoration: none;
+  padding: 4px 6px;
+}
+
+.organizer-calendar .fc .fc-day-today .fc-daygrid-day-number {
+  background: #0f766e;
+  color: #fff;
+  border-radius: 9999px;
+  min-width: 1.6rem;
+  text-align: center;
+}
+
+.organizer-calendar .fc-event {
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Größere Ziele auf dem Handy */
+.organizer-calendar .fc-timegrid-event {
+  min-height: 26px;
+}
+.organizer-calendar .fc-daygrid-block-event {
+  min-height: 20px;
+}
+.organizer-calendar .fc .fc-timegrid-slot {
+  height: 2.25rem;
+}
+
+.organizer-calendar .task-done {
+  opacity: 0.5;
+}
+
+/* Beim Ziehen hervorheben */
+.organizer-calendar .fc-event-dragging,
+.organizer-calendar .fc-event-mirror {
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.25);
+}
+
+.organizer-calendar .fc .fc-daygrid-more-link {
+  font-size: 0.75rem;
+  color: #0f766e;
+}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { Header } from '@/components/layout/Header'
@@ -8,7 +8,8 @@ import { SetupPage } from '@/features/setup'
 import { SettingsPage } from '@/features/settings'
 import { TodayPage } from '@/features/today'
 import { EditTaskPage, NewTaskPage, TasksPage } from '@/features/tasks'
-import { CalendarPage } from '@/features/calendar'
+// Kalender (FullCalendar) erst beim Öffnen laden, damit der Start schnell bleibt
+const CalendarPage = lazy(() => import('@/features/calendar').then((m) => ({ default: m.CalendarPage })))
 import { ShoppingPage } from '@/features/shopping'
 import { RoomsPage } from '@/features/rooms'
 import { PersonsPage } from '@/features/persons'
@@ -49,7 +50,14 @@ function Shell() {
       <main className="mx-auto w-full max-w-xl flex-1 pb-24">
         <Routes>
           <Route path="/" element={<TodayPage />} />
-          <Route path="/kalender" element={<CalendarPage />} />
+          <Route
+            path="/kalender"
+            element={
+              <Suspense fallback={<p className="p-8 text-center text-sm text-slate-500">Kalender wird geladen …</p>}>
+                <CalendarPage />
+              </Suspense>
+            }
+          />
           <Route path="/aufgaben" element={<TasksPage />} />
           <Route path="/aufgaben/neu" element={<NewTaskPage />} />
           <Route path="/aufgaben/:id" element={<EditTaskPage />} />

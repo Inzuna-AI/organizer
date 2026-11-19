@@ -124,7 +124,7 @@ export function NewTaskPage() {
   return (
     <div className="p-4">
       <TaskForm
-        defaults={{ date, assigneeIds: meId ? [meId] : [] }}
+        defaults={{ date, time: params.get('uhrzeit') ?? '', assigneeIds: meId ? [meId] : [] }}
         submitLabel="Aufgabe anlegen"
         onSubmit={(input) => {
           taskActions.create(input)

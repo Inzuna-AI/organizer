@@ -21,7 +21,7 @@ Ein gemeinsamer Organizer für einen Haushalt mit zwei Personen (Lena und ich). 
 | Frontend | React + TypeScript + Vite |
 | Styling | Tailwind CSS |
 | State | Zustand (leichtgewichtig) |
-| Kalender | FullCalendar (Tag-, Wochen-, Monatsansicht, Drag and Drop) |
+| Kalender | FullCalendar 6 (6.1.x, Tag-, Wochen-, Monatsansicht, Drag and Drop; wird per `lazy` erst beim Öffnen geladen) |
 | Wiederholungen | rrule.js (RFC-5545-RRULE) |
 | Animation, Sortieren, Wischen | `motion` (Version 12, `motion/react`: Layout-Animation, `Reorder`, Drag) |
 | Datenspeicher | `data.json` im privaten Repo, über die GitHub REST API |

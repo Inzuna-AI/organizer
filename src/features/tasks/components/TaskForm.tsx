@@ -20,7 +20,7 @@ import {
 interface Props {
   initial?: Task
   /** Vorbelegung für neue Aufgaben */
-  defaults?: { date?: string; assigneeIds?: string[] }
+  defaults?: { date?: string; time?: string; assigneeIds?: string[] }
   submitLabel: string
   onSubmit: (input: TaskInput) => void
 }
@@ -36,7 +36,7 @@ export function TaskForm({ initial, defaults, submitLabel, onSubmit }: Props) {
   const [roomId, setRoomId] = useState(initial?.roomId ?? '')
   const [priority, setPriority] = useState<Priority>(initial?.priority ?? 'medium')
   const [date, setDate] = useState(initial ? (taskDate(initial) ?? '') : (defaults?.date ?? ''))
-  const [time, setTime] = useState(initial ? (taskTime(initial) ?? '') : '')
+  const [time, setTime] = useState(initial ? (taskTime(initial) ?? '') : (defaults?.time ?? ''))
   const [duration, setDuration] = useState(initial?.durationMin ? String(initial.durationMin) : '')
   const [assigneeIds, setAssigneeIds] = useState<string[]>(initial?.assigneeIds ?? defaults?.assigneeIds ?? [])
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initial?.checklist ?? [])
