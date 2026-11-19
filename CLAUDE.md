@@ -400,15 +400,17 @@ Nicht jedes Feature braucht jede Datei. Kleine Features dürfen schlanker sein.
 
 **Online:** https://inzuna-ai.github.io/organizer/ · Code-Repo `Inzuna-AI/organizer` (Name klein geschrieben, sonst stimmt `base` nicht)
 
-### Phase 2: Aufgaben, Räume, Personen
-- [ ] Räume verwalten (Name, Farbe, Icon, Reihenfolge)
-- [ ] Personen verwalten (Name, Kürzel, Farbe)
-- [ ] Aufgaben anlegen und bearbeiten (Titel, Beschreibung, Raum, Priorität, Datum, Dauer)
-- [ ] Aufgaben einer oder mehreren Personen zuordnen
-- [ ] Checklisten/Unteraufgaben
-- [ ] **Inbox**: Aufgaben ohne Datum
-- [ ] **Heute-Ansicht** als Startseite (inkl. überfälliger Aufgaben)
-- [ ] Filter nach Raum, Person und Status, plus „Meine Aufgaben“
+### Phase 2: Aufgaben, Räume, Personen (`v0.2.0`, abgeschlossen am 19.11.2026)
+- [x] Räume verwalten (Name, Farbe, Icon, Reihenfolge)
+- [x] Personen verwalten (Name, Kürzel, Farbe)
+- [x] Aufgaben anlegen und bearbeiten (Titel, Beschreibung, Raum, Priorität, Datum, Dauer)
+- [x] Aufgaben einer oder mehreren Personen zuordnen
+- [x] Checklisten/Unteraufgaben
+- [x] **Inbox**: Aufgaben ohne Datum
+- [x] **Heute-Ansicht** als Startseite (inkl. überfälliger Aufgaben)
+- [x] Filter nach Raum, Person und Status, plus „Meine Aufgaben“
+
+Hinweise zur Umsetzung: Räume und Personen werden unter Einstellungen → Verwalten gepflegt (`/einstellungen/raeume`, `/einstellungen/personen`). Status-Filter = Ansichten „Geplant / Inbox / Erledigt“ unter `/aufgaben?ansicht=…`. Kleine Bedien-Einstellungen pro Gerät (Filter, „Meine/Alle“) liegen über `loadPref`/`savePref` in `lib/storage.ts`.
 
 ### Phase 2b: Einkaufszettel (`v0.2.1`)
 - [ ] Liste mit Checkboxen, Hinzufügen per Eingabefeld
