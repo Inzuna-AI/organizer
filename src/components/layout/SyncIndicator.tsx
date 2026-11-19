@@ -5,10 +5,16 @@ interface Props {
   state: SyncState
 }
 
-function label(state: SyncState): { text: string; dot: string } {
+function label(state: SyncState): { text: string; dot: string; hint?: string } {
   switch (state.status) {
     case 'offline':
-      return { text: 'Offline', dot: 'bg-slate-400' }
+      return state.dirty
+        ? {
+            text: 'Offline · wartet',
+            dot: 'bg-amber-400',
+            hint: 'Änderungen sind auf dem Gerät gespeichert und werden übertragen, sobald wieder Netz da ist.',
+          }
+        : { text: 'Offline', dot: 'bg-slate-400', hint: 'Kein Netz. Änderungen werden später übertragen.' }
     case 'error':
       return { text: 'Fehler beim Sync', dot: 'bg-red-500' }
     case 'readonly':
@@ -25,13 +31,13 @@ function label(state: SyncState): { text: string; dot: string } {
 }
 
 export function SyncIndicator({ state }: Props) {
-  const { text, dot } = label(state)
+  const { text, dot, hint } = label(state)
   return (
     <span
-      className="inline-flex items-center gap-1.5 text-xs text-slate-500"
+      className="inline-flex items-center gap-1.5 text-xs whitespace-nowrap text-slate-500"
       role="status"
       aria-live="polite"
-      title={state.error ?? text}
+      title={hint ?? state.error ?? text}
     >
       <span className={`h-2 w-2 rounded-full ${dot}`} />
       {text}

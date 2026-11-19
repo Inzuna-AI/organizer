@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { formatDateTime } from '@/lib/dates'
+import { backupFileName, describeBackup, exportText, mergeImport, parseBackup, restoreImport } from '@/lib/backup'
+import { berlinDateString, formatDateTime, nowIso } from '@/lib/dates'
+import type { DataFile } from '@/types/data'
+import { ChoiceDialog } from '@/components/ui/ChoiceDialog'
 import { alive } from '@/lib/records'
 import { maskToken } from '@/lib/storage'
+import { getTheme, setTheme, type Theme } from '@/lib/theme'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { TextField } from '@/components/ui/TextField'
-import { useAppStore } from '@/store'
+import { currentPersonId, updateData, useAppStore } from '@/store'
 
 const STATUS_TEXT: Record<string, string> = {
   idle: 'Synchronisiert',
@@ -16,6 +20,12 @@ const STATUS_TEXT: Record<string, string> = {
   error: 'Fehler',
   readonly: 'Nur lesen',
 }
+
+const THEMES: Array<{ key: Theme; label: string }> = [
+  { key: 'system', label: '⚙️ System' },
+  { key: 'light', label: '☀️ Hell' },
+  { key: 'dark', label: '🌙 Dunkel' },
+]
 
 export function SettingsPage() {
   const config = useAppStore((s) => s.config)
@@ -28,6 +38,45 @@ export function SettingsPage() {
   const removeToken = useAppStore((s) => s.removeToken)
 
   const [deviceName, setDeviceName] = useState(device?.deviceName ?? '')
+  const [theme, setThemeState] = useState<Theme>(getTheme)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [pendingImport, setPendingImport] = useState<DataFile | null>(null)
+  const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  function onExport() {
+    if (!data) return
+    const url = URL.createObjectURL(new Blob([exportText(data)], { type: 'application/json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = backupFileName(berlinDateString())
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  async function onFileChosen(file: File | undefined) {
+    if (fileInput.current) fileInput.current.value = ''
+    if (!file) return
+    setImportMsg(null)
+    const result = parseBackup(await file.text())
+    if (result.ok) setPendingImport(result.data)
+    else setImportMsg({ ok: false, text: result.error })
+  }
+
+  function onImportChoice(choice: 'merge' | 'restore' | null) {
+    const backup = pendingImport
+    setPendingImport(null)
+    if (!choice || !backup) return
+    const ok = updateData((d) =>
+      choice === 'merge' ? mergeImport(d, backup) : restoreImport(d, backup, currentPersonId(), nowIso()),
+    )
+    setImportMsg(
+      ok
+        ? { ok: true, text: choice === 'merge' ? 'Sicherung wurde zusammengeführt.' : 'Sicherung wurde wiederhergestellt.' }
+        : { ok: false, text: 'Import nicht möglich (Nur-Lesen-Modus).' },
+    )
+  }
   const persons = data ? alive(data.persons) : []
 
   function onRemoveToken() {
@@ -48,6 +97,12 @@ export function SettingsPage() {
           <dt className="text-slate-500">Zuletzt</dt>
           <dd>{sync.lastSyncAt ? formatDateTime(sync.lastSyncAt) : '–'}</dd>
         </dl>
+        {sync.status === 'offline' && (
+          <p className="mb-3 rounded-lg bg-slate-100 p-2 text-sm text-slate-700">
+            Kein Netz. Du kannst normal weiterarbeiten: Änderungen bleiben auf dem Gerät und werden automatisch
+            übertragen, sobald wieder eine Verbindung besteht.
+          </p>
+        )}
         {sync.error && <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-800">{sync.error}</p>}
         <Button variant="secondary" block onClick={() => void syncNow()}>
           Jetzt synchronisieren
@@ -92,6 +147,28 @@ export function SettingsPage() {
                     {p.kuerzel}
                   </span>
                   {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-medium text-slate-700">Darstellung</p>
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Darstellung">
+              {THEMES.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={theme === t.key}
+                  onClick={() => {
+                    setTheme(t.key)
+                    setThemeState(t.key)
+                  }}
+                  className={`min-h-11 rounded-xl border-2 text-sm ${
+                    theme === t.key ? 'border-brand-700 bg-brand-50 font-semibold' : 'border-slate-200'
+                  }`}
+                >
+                  {t.label}
                 </button>
               ))}
             </div>
@@ -144,7 +221,48 @@ export function SettingsPage() {
           <dt className="text-slate-500">Einkaufslisten</dt>
           <dd>{data ? alive(data.shoppingLists).length : 0}</dd>
         </dl>
+        <p className="mt-4 mb-2 text-sm text-slate-500">
+          Zusätzliche Sicherung als Datei. Die komplette Historie steht außerdem im Daten-Repo auf GitHub.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" disabled={!data} onClick={onExport}>
+            ⬇️ Exportieren
+          </Button>
+          <Button variant="secondary" onClick={() => fileInput.current?.click()}>
+            ⬆️ Importieren
+          </Button>
+        </div>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(e) => void onFileChosen(e.target.files?.[0])}
+        />
+        {importMsg && (
+          <p
+            role="status"
+            className={`mt-3 rounded-lg p-2 text-sm ${importMsg.ok ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-800'}`}
+          >
+            {importMsg.text}
+          </p>
+        )}
       </Card>
+
+      <ChoiceDialog
+        open={!!pendingImport}
+        title="Sicherung importieren"
+        message={
+          pendingImport
+            ? `Die Datei enthält ${describeBackup(pendingImport)}. „Zusammenführen“ übernimmt pro Eintrag den neueren Stand. „Wiederherstellen“ setzt alles auf den Stand der Datei zurück, später Angelegtes wird gelöscht.`
+            : undefined
+        }
+        choices={[
+          { value: 'merge', label: 'Zusammenführen (Neueres gewinnt)' },
+          { value: 'restore', label: 'Wiederherstellen (Stand der Datei)', variant: 'danger' },
+        ]}
+        onChoose={onImportChoice}
+      />
 
       <p className="pb-4 text-center text-xs text-slate-400">Organizer · Version {__APP_VERSION__}</p>
     </div>

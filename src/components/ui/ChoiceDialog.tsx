@@ -29,7 +29,7 @@ export function ChoiceDialog<T extends string>({ open, title, message, choices, 
 
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 sm:items-center" onClick={() => onChoose(null)}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={() => onChoose(null)}>
       <div
         role="dialog"
         aria-modal="true"

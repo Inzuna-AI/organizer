@@ -309,6 +309,7 @@ organizer/
 │   │   ├── calendar/              # FullCalendar-Ansichten, Drag and Drop
 │   │   ├── rooms/                 # Räume verwalten, Farbauswahl
 │   │   ├── shopping/              # Einkaufszettel: Listen, Artikel, Vorschläge
+│   │   ├── search/                # Suche über alle Aufgaben (/suche)
 │   │   ├── persons/               # Personen verwalten
 │   │   ├── notifications/         # Push aktivieren, Einstellungen pro Gerät, Test
 │   │   └── settings/              # Einstellungen, Dark Mode, Sync-Status
@@ -325,6 +326,8 @@ organizer/
 │   │   ├── storage.ts             # localStorage: Token, Gerät, Cache
 │   │   ├── sha1.ts                # Git-Blob-SHA aus dem Dateiinhalt (spart einen API-Abruf, läuft auch ohne HTTPS)
 │   │   ├── records.ts             # uuid, touch (updatedAt/updatedBy), tombstone, alive
+│   │   ├── theme.ts               # Dark Mode: Klasse .dark am <html>, System/Hell/Dunkel
+│   │   ├── backup.ts              # Export/Import von data.json (+ backup.test.ts)
 │   │   ├── push.ts                # Subscription anlegen/entfernen, Berechtigung
 │   │   └── dates.ts               # Datumshelfer (deutsch, Europe/Berlin)
 │   ├── sw.ts                      # Service Worker: Offline-Cache, push, notificationclick

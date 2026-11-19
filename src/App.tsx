@@ -55,7 +55,7 @@ function Shell() {
         onSearch={searchable ? () => navigate('/suche') : undefined}
       />
       {sync.status === 'readonly' && sync.error && (
-        <div role="alert" className="bg-amber-100 px-4 py-2 text-sm text-amber-900">
+        <div role="alert" className="bg-amber-100 px-4 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
           {sync.error}
         </div>
       )}

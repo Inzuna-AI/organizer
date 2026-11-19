@@ -8,6 +8,27 @@
   font-size: 0.875rem;
 }
 
+.dark .organizer-calendar .fc {
+  --fc-border-color: #334155;
+  --fc-today-bg-color: rgb(45 212 191 / 0.1);
+  --fc-now-indicator-color: #f87171;
+  --fc-page-bg-color: #0f172a;
+  --fc-neutral-bg-color: #1e293b;
+  --fc-list-event-hover-bg-color: #1e293b;
+  --fc-highlight-color: rgb(45 212 191 / 0.15);
+}
+
+.dark .organizer-calendar .fc .fc-col-header-cell-cushion,
+.dark .organizer-calendar .fc .fc-daygrid-day-number,
+.dark .organizer-calendar .fc .fc-timegrid-slot-label,
+.dark .organizer-calendar .fc .fc-timegrid-axis {
+  color: #cbd5e1;
+}
+
+.dark .organizer-calendar .fc .fc-daygrid-more-link {
+  color: #5eead4;
+}
+
 .organizer-calendar .fc .fc-col-header-cell-cushion,
 .organizer-calendar .fc .fc-daygrid-day-number {
   color: #334155;

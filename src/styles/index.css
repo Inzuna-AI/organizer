@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Dark Mode folgt in Phase 5 (Klasse .dark am <html>) */
+/* Dark Mode: Klasse .dark am <html> (gesetzt von src/lib/theme.ts) */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
@@ -20,8 +20,8 @@ body,
 
 body {
   margin: 0;
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--color-slate-50);
+  color: var(--color-slate-900);
   font-family:
     system-ui,
     -apple-system,
@@ -36,6 +36,50 @@ body {
 input::-webkit-date-and-time-value {
   text-align: left;
   min-height: 1.5em;
+}
+
+/*
+ * Dunkles Design per Umdeutung der Farb-Tokens: Die Komponenten bleiben bei
+ * bg-white / text-slate-…, im Dunkeln stehen dieselben Namen für dunkle Flächen
+ * und helle Schrift. So braucht nicht jede Klasse ein eigenes dark:-Gegenstück.
+ * Ausnahmen (Toast, Banner) nutzen dark: direkt.
+ */
+.dark {
+  --color-white: #0f172a; /* Flächen: Karten, Eingabefelder, Header */
+  --color-slate-50: #0b1220;
+  --color-slate-100: #1e293b;
+  --color-slate-200: #334155;
+  --color-slate-300: #475569;
+  --color-slate-400: #7b8799;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #cbd5e1;
+  --color-slate-700: #e2e8f0;
+  --color-slate-800: #f1f5f9;
+  --color-slate-900: #f8fafc;
+  --color-brand-50: #0f2f2d;
+  --color-brand-100: #134e4a;
+  --color-red-50: #3b1515;
+  --color-red-200: #7f1d1d;
+  --color-red-300: #991b1b;
+}
+
+.dark body {
+  background: #020617;
+}
+
+/* Weiße Schrift bleibt weiß (Buttons, Badges), obwohl --color-white jetzt dunkel ist */
+.dark .text-white {
+  color: #fff;
+}
+
+/* Akzent- und Warnschrift heller, damit sie auf dunklem Grund lesbar bleibt */
+.dark .text-brand-700 {
+  color: #5eead4;
+}
+.dark .text-red-600,
+.dark .text-red-700,
+.dark .text-red-800 {
+  color: #f87171;
 }
 
 .pt-safe {

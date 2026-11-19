@@ -3,6 +3,18 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [0.5.0] – 2026-11-19
+
+### Neu
+- Suche über alle Aufgaben (Lupe oben auf Heute, Kalender und Aufgaben): findet Titel, Beschreibung, Checklisten-Punkte und Raum; Groß-/Kleinschreibung und Umlaute sind egal
+- Dark Mode: Einstellungen → Dieses Gerät → Darstellung „System / Hell / Dunkel“, auch für den Kalender
+- Export der Daten als Datei (`organizer-backup-JJJJ-MM-TT.json`) unter Einstellungen → Daten
+- Import einer Sicherung: „Zusammenführen“ (pro Eintrag gewinnt der neuere Stand) oder „Wiederherstellen“ (alles auf den Stand der Datei zurück)
+
+### Geändert
+- Offline: Die Statusanzeige zeigt „Offline · wartet“, solange Änderungen noch nicht übertragen sind; in den Einstellungen steht ein kurzer Hinweis
+- Wiederholungen: Das Feld „Alle N …“ markiert beim Antippen die Zahl, sodass man sie direkt überschreiben kann
+
 ## [0.4.0] – 2026-11-19
 
 ### Neu
