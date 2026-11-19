@@ -3,7 +3,7 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
-## [0.1.0] – unveröffentlicht
+## [0.1.0] – 2026-11-19
 
 ### Neu
 - Grundgerüst mit React, TypeScript, Vite und Tailwind CSS

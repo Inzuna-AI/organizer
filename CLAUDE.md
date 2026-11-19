@@ -389,14 +389,16 @@ Nicht jedes Feature braucht jede Datei. Kleine Features dürfen schlanker sein.
 
 ## Features nach Phasen
 
-### Phase 1: Grundgerüst und Sync
-- [ ] Vite + React + TS + Tailwind aufsetzen, GitHub-Actions-Deploy auf Pages
-- [ ] PWA-Manifest + Icons, „Zum Homescreen hinzufügen“ funktioniert auf Android und iOS
-- [ ] Einrichtungsbildschirm (Token, Repo, „Das bin ich“)
-- [ ] `github.ts` + `sync.ts` + `merge.ts` inklusive Tests
-- [ ] Sync-Statusanzeige
-- [ ] `CHANGELOG.md`, `release.yml` und `rollback.yml`, Versionsanzeige in der App
-- [ ] Erstes Release `v0.1.0`
+### Phase 1: Grundgerüst und Sync (`v0.1.0`, abgeschlossen am 19.11.2026)
+- [x] Vite + React + TS + Tailwind aufsetzen, GitHub-Actions-Deploy auf Pages
+- [x] PWA-Manifest + Icons, „Zum Homescreen hinzufügen“ funktioniert auf Android und iOS
+- [x] Einrichtungsbildschirm (Token, Repo, „Das bin ich“)
+- [x] `github.ts` + `sync.ts` + `merge.ts` inklusive Tests
+- [x] Sync-Statusanzeige
+- [x] `CHANGELOG.md`, `release.yml` und `rollback.yml`, Versionsanzeige in der App
+- [x] Erstes Release `v0.1.0`
+
+**Online:** https://inzuna-ai.github.io/organizer/ · Code-Repo `Inzuna-AI/organizer` (Name klein geschrieben, sonst stimmt `base` nicht)
 
 ### Phase 2: Aufgaben, Räume, Personen
 - [ ] Räume verwalten (Name, Farbe, Icon, Reihenfolge)
