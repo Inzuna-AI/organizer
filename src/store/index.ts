@@ -142,6 +142,13 @@ export function updateData(mutator: (data: DataFile) => DataFile): boolean {
   return useAppStore.getState().update(mutator)
 }
 
+export const DEFAULT_POLL_MS = 30_000
+
+/** Polling-Intervall ändern, z. B. kürzer, solange der Einkaufszettel offen ist. */
+export function setSyncInterval(ms: number): void {
+  engine?.setPollInterval(ms)
+}
+
 /** Aktuelle Person dieses Geräts („Das bin ich“). */
 export function useMe() {
   return useAppStore((s) => s.data?.persons.find((p) => p.id === s.device?.personId) ?? null)

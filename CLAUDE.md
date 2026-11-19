@@ -23,6 +23,7 @@ Ein gemeinsamer Organizer für einen Haushalt mit zwei Personen (Lena und ich). 
 | State | Zustand (leichtgewichtig) |
 | Kalender | FullCalendar (Tag-, Wochen-, Monatsansicht, Drag and Drop) |
 | Wiederholungen | rrule.js (RFC-5545-RRULE) |
+| Animation, Sortieren, Wischen | `motion` (Version 12, `motion/react`: Layout-Animation, `Reorder`, Drag) |
 | Datenspeicher | `data.json` im privaten Repo, über die GitHub REST API |
 | Lokaler Cache | localStorage (bzw. IndexedDB, falls die Daten zu groß werden) |
 | Hosting | GitHub Pages, Deployment per GitHub Actions |
