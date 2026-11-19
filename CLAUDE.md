@@ -169,6 +169,7 @@ Jeder Datensatz hat `id` (UUID), `updatedAt` (ISO-Zeitstempel), `deleted` (bool)
 - `events` (Termine, ab `schemaVersion` 2): `startAt` mit Uhrzeit oder ganztägig `JJJJ-MM-TT`. `endAt` mit Uhrzeit (auch an einem späteren Tag) bzw. bei ganztägigen der letzte Tag inklusive; `null` = 60 Minuten bzw. ein Tag. `personIds` leer oder alle Personen = „Familie“. Ausnahmen einer Serie stehen direkt im Termin (`exceptions`, Schlüssel = ursprüngliches Datum), nicht in `occurrences`.
 - `devices[].notify.newEvent`: Nachricht bei neuem oder geändertem Termin, bei dem die Person dabei ist.
 - `tasks[].reminderTimes` / `events[].reminderTimes` (optional, seit v1.2.0): Erinnerungen zu festen Uhrzeiten als `"<Tage relativ>@HH:MM"`, z. B. `"-7@09:00"`, `"-1@15:00"`, `"0@21:00"`. Fehlt = keine Erinnerung.
+- `tasks[].period` (optional, seit v1.4.0): `week` | `month` | `quarter` | `half` | `year` = Aufgabe mit Zeitraum statt festem Tag. `startAt` ist dann der erste Tag des Zeitraums (ganztägig), eine Serie hat `FREQ=WEEKLY;BYDAY=MO` bzw. `FREQ=MONTHLY;INTERVAL=<Monate>`. Fehlt/`null` = fester Tag.
 - `devices[].notify.dueReminder`: Erinnerungen auf diesem Gerät an/aus. `dueReminderMinutesBefore` wird seit v1.3.0 nicht mehr verwendet. `quietHours` kann `null` sein (keine Ruhezeiten).
 - `devices[].testRequestedAt` (optional): Ändert sich der Wert, schickt `notify-on-change` eine Testbenachrichtigung an dieses Gerät.
 - Bei einer Änderung von `schemaVersion` wird beim Laden automatisch migriert (`src/lib/migrations.ts`).
@@ -343,6 +344,7 @@ organizer/
 │   │   ├── merge.ts               # Zusammenführen lokal/remote (+ merge.test.ts)
 │   │   ├── recurrence.ts          # RRULE, Rotation (+ recurrence.test.ts)
 │   │   ├── events.ts              # Termine: Dauer, Serien auflösen, Verschieben, Familie (+ events.test.ts)
+│   │   ├── periods.ts             # Zeitraum-Aufgaben: Woche bis Jahr, laufender/nächster Zeitraum (+ periods.test.ts)
 │   │   ├── migrations.ts          # schemaVersion-Migrationen
 │   │   ├── storage.ts             # localStorage: Token, Gerät, Cache
 │   │   ├── sha1.ts                # Git-Blob-SHA aus dem Dateiinhalt (spart einen API-Abruf, läuft auch ohne HTTPS)
@@ -533,6 +535,17 @@ Hinweise zur Umsetzung:
 - `reminderTimes` ist optional, kein Schema-Wechsel; Änderungen daran lösen keine „geändert“-Nachricht aus (nicht in `WATCHED`).
 - `fixedReminderWindow`: von 15 Min. vor bis 30 Min. nach der Uhrzeit, auch nach Beginn (bei Aufgaben nur offene). Schlüssel `<Erinnerungs-Schlüssel>|<code>`. Kandidaten werden 7 Tage voraus betrachtet (`MAX_DAYS_BEFORE`). Mehrere gleichzeitig fällige Erinnerungen eines Eintrags = eine Zeile, alle Schlüssel werden gemerkt.
 - Vor 6 Uhr Berliner Zeit verschickt `reminderRun` nichts (auch bei manuellem Start) und merkt nichts. Der Cron `7,37 4-22 * * *` (UTC) deckt Sommer- und Winterzeit ab.
+
+### Aufgaben mit Zeitraum (`v1.4.0`, abgeschlossen am 19.11.2026)
+- [x] Zeitraum statt festem Tag: Woche, Monat, Quartal, Halbjahr, Jahr (Quartal/Halbjahr/Jahr am Kalender ausgerichtet)
+- [x] Wiederkehrend mit Rotation; Zeitraum so lang wie der Abstand („alle 2 Wochen“ = 2 Wochen Zeit)
+- [x] Eigener Bereich „Zeitraum“ unter Aufgaben (`/aufgaben?ansicht=zeitraum`), Abschnitt „Im Zeitraum“ in Heute
+
+Hinweise zur Umsetzung:
+- Logik rein in `lib/periods.ts` (App und notify). Speicherung über die normale Serienlogik von `lib/recurrence.ts`: Occurrence-Schlüssel ist der erste Tag des Zeitraums. `periodInterval` rechnet die RRULE-Monate in Zeiträume um (Quartal = 3).
+- Listen (`periodInstances`): der laufende Zeitraum; ist er erledigt/ausgelassen oder hat die Serie noch nicht begonnen, zusätzlich der nächste offene; dazu alle erledigten. Verpasste Serien-Zeiträume verfallen still, einmalige gelten nach Ablauf als überfällig.
+- Nicht im Kalender, keine Erinnerungen (`ReminderField` ausgeblendet), nicht in der täglichen Zusammenfassung (`slotsBetween`/`overdueSlots` überspringen sie). Benachrichtigungen nennen den Zeitraum („· Diese Woche“); `period` ist in `WATCHED`. Rotation nach Position des Zeitraums in der Serie.
+- Formular: Umschalter „Fester Tag / Zeitraum“ (`PeriodField`), „Neu“ mit `?zeitraum=1` startet im Zeitraum-Modus. Auswahl: 8 Wochen, 12 Monate, 6 Quartale, 4 Halbjahre, 3 Jahre ab heute. Kein „Nur diesen Termin“; pro Zeitraum gibt es „Diesmal auslassen“ und „Diesmal zuständig“.
 
 ### Später / optional
 - Sync mit Google- oder Apple-Kalender (z. B. als ICS-Export)
