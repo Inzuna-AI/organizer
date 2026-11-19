@@ -55,7 +55,7 @@ export function EventForm({ initial, instanceStart, defaults, seriesDate, submit
 
   function setAllDay(allDay: boolean) {
     if (allDay) setTimes((t) => ({ ...t, allDay: true, startTime: '', endTime: '' }))
-    else setTimes((t) => ({ ...defaultFormValues(t.startDate, '10:00'), startDate: t.startDate }))
+    else setTimes((t) => ({ ...defaultFormValues(t.startDate, ''), startDate: t.startDate }))
   }
 
   function submit(e: FormEvent) {

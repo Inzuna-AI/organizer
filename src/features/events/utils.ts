@@ -28,9 +28,12 @@ export function toFormValues(i: Pick<EventInstance, 'startAt' | 'endAt' | 'allDa
   }
 }
 
-/** Voreinstellung für einen neuen Termin */
+/** Uhrzeit eines neuen Termins, wenn keine vorgegeben ist (z. B. „+“ oder Monatsansicht) */
+export const DEFAULT_EVENT_TIME = '10:00'
+
+/** Voreinstellung für einen neuen Termin: immer mit Uhrzeit, „ganztägig“ ist nicht angehakt */
 export function defaultFormValues(date: string, time: string): EventFormValues {
-  if (!time) return { startDate: date, startTime: '', endDate: date, endTime: '', allDay: true }
+  time ||= DEFAULT_EVENT_TIME
   const end = addMinutesTo(`${date}T${time}`, DEFAULT_EVENT_MIN)
   return { startDate: date, startTime: time, endDate: end.slice(0, 10), endTime: end.slice(11, 16), allDay: false }
 }

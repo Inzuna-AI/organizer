@@ -31,7 +31,12 @@ describe('Formularwerte', () => {
       endAt: '2026-11-21T00:30',
       allDay: false,
     })
-    expect(fromFormValues(defaultFormValues('2026-11-20', ''))).toEqual({ startAt: '2026-11-20', endAt: null, allDay: true })
+    // Ohne Uhrzeit: nicht ganztägig, sondern 10 Uhr mit Standarddauer
+    expect(fromFormValues(defaultFormValues('2026-11-20', ''))).toEqual({
+      startAt: '2026-11-20T10:00',
+      endAt: '2026-11-20T11:00',
+      allDay: false,
+    })
   })
 
   it('Beginn verschieben nimmt das Ende mit', () => {

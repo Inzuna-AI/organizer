@@ -3,6 +3,11 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.3.1] – 2026-11-19
+
+### Geändert
+- Neue Termine sind nicht mehr automatisch ganztägig: Ohne gewählte Uhrzeit (z. B. über „+“ oder die Monatsansicht) ist 10–11 Uhr vorbelegt, „Ganztägig“ lässt sich bei Bedarf anhaken
+
 ## [1.3.0] – 2026-11-19
 
 ### Geändert
