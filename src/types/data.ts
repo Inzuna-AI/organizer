@@ -52,6 +52,11 @@ export interface Task extends BaseRecord {
   recurrenceMode: RecurrenceMode
   rotation: boolean
   checklist: ChecklistItem[]
+  /**
+   * Erinnerung (seit v1.1.0, optional, kein Schema-Wechsel): fehlt = Standard des Geräts,
+   * null = keine, 0 = zum Zeitpunkt, N = Minuten vorher (Bedeutung siehe lib/reminders.ts)
+   */
+  reminderMin?: number | null
 }
 
 export interface Occurrence extends BaseRecord {
@@ -92,6 +97,8 @@ export interface CalEvent extends BaseRecord {
   /** RRULE ohne DTSTART wie bei Aufgaben (Serienstart = startAt), null = einmalig */
   recurrenceRule: string | null
   exceptions: EventException[]
+  /** Erinnerung wie bei Aufgaben (optional; fehlt = Standard des Geräts) */
+  reminderMin?: number | null
 }
 
 export interface ShoppingList extends BaseRecord {
@@ -119,7 +126,7 @@ export interface NotifySettings {
   newEvent: boolean
   onlyMyTasks: boolean
   dueReminder: boolean
-  /** 15 / 30 / 60 Minuten vorher, -1 = am Morgen des Tages */
+  /** Standard für Einträge ohne eigene Erinnerung: 0 / 5 / 15 / 30 / 60 / 1440 Minuten vorher, -1 = am Morgen des Tages */
   dueReminderMinutesBefore: number
   dailySummary: boolean
   dailySummaryTime: string

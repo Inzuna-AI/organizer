@@ -79,6 +79,7 @@ export type TaskInput = Pick<
   | 'recurrenceRule'
   | 'recurrenceMode'
   | 'rotation'
+  | 'reminderMin'
 >
 
 export function createTask(input: TaskInput, personId: string | null): Task {

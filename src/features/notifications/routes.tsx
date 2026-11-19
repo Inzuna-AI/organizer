@@ -217,7 +217,10 @@ export function NotificationsPage() {
           <Card title="Erinnerungen">
             <div className="-my-1 divide-y divide-slate-100">
               <label className="flex min-h-12 items-center justify-between gap-3 py-2">
-                <span className="whitespace-nowrap">Vor Fälligkeit</span>
+                <span>
+                  <span className="block whitespace-nowrap">Erinnerung (Standard)</span>
+                  <span className="block text-xs text-slate-500">für Einträge ohne eigene Erinnerung</span>
+                </span>
                 <select
                   value={reminderValue(n)}
                   onChange={(e) => set(reminderPatch(e.target.value))}
@@ -280,8 +283,9 @@ export function NotificationsPage() {
               </div>
             </div>
             <p className="mt-3 text-xs text-slate-500">
-              GitHub prüft einmal pro Stunde, ob etwas fällig ist. Erinnerungen und Zusammenfassung kommen daher auf
-              etwa eine halbe Stunde genau.
+              Bei jeder Aufgabe und jedem Termin lässt sich unter „Erinnerung“ ein eigener Zeitpunkt wählen. „Aus“
+              schaltet alle Erinnerungen für dieses Gerät ab. GitHub prüft zwischen 6 und 23 Uhr alle 30 Minuten, ob
+              etwas fällig ist. Erinnerungen kommen daher auf etwa eine Viertelstunde genau, nachts fällige um 6 Uhr.
             </p>
           </Card>
         </>

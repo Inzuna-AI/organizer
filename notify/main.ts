@@ -2,7 +2,7 @@
 // data-repo-template/scripts/notify.mjs gebündelt (rrule und App-Logik inklusive, nur web-push extern).
 //
 //   node scripts/notify.mjs change     → nach einem Push auf data.json (notify-on-change.yml)
-//   node scripts/notify.mjs reminders  → stündlich (reminders.yml)
+//   node scripts/notify.mjs reminders  → alle 30 Minuten, 6–23 Uhr (reminders.yml)
 //
 // Wichtig: Keine Aufgabeninhalte ins Log schreiben, nur Zahlen.
 

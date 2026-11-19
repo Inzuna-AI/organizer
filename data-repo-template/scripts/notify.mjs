@@ -4020,7 +4020,9 @@ function testMessages(prev, next) {
 // src/notify/reminders.ts
 var emptyState = () => ({ sent: {}, summaries: {} });
 var MORNING = "07:00";
-var EARLY_MS = 30 * 6e4;
+var ACTIVE_FROM = "06:00";
+var EARLY_MS = 15 * 6e4;
+var LATE_MS = 30 * 6e4;
 var SUMMARY_WINDOW_MIN = 180;
 var mine = (device) => (s) => s.status === "open" && relevant(device, s.task.roomId, s.assigneeIds, { mineOrUnassigned: true });
 function reminderKey(device, s) {
@@ -4029,9 +4031,7 @@ function reminderKey(device, s) {
 function dueReminder(data, device, now, state) {
   const n = device.notify;
   if (!n.dueReminder) return null;
-  const { date: today, time } = berlinParts(now);
-  const minutes = minutesOf(time);
-  const morning = minutes >= minutesOf(MORNING) && minutes < 12 * 60;
+  const today = berlinParts(now).date;
   const nowMs = now.getTime();
   const candidates = [
     ...myEvents(data, device, today, addDays(today, 1)),
@@ -4041,22 +4041,15 @@ function dueReminder(data, device, now, state) {
       title: s.task.title,
       startAt: s.startAt,
       allDay: s.allDay,
-      url: taskUrl(s.task.id, s.date)
+      url: taskUrl(s.task.id, s.date),
+      reminderMin: s.task.reminderMin
     }))
   ];
-  const due = [];
-  for (const s of candidates) {
-    if (state.sent[s.key]) continue;
-    const day = s.startAt.slice(0, 10);
-    if (s.allDay || n.dueReminderMinutesBefore < 0) {
-      const notStarted = s.allDay || berlinWallToDate(s.startAt).getTime() > nowMs;
-      if (day === today && morning && notStarted) due.push(s);
-    } else {
-      const start = berlinWallToDate(s.startAt).getTime();
-      const remindAt = start - n.dueReminderMinutesBefore * 6e4;
-      if (nowMs >= remindAt - EARLY_MS && nowMs < start) due.push(s);
-    }
-  }
+  const due = candidates.filter((s) => {
+    if (state.sent[s.key]) return false;
+    const w = reminderWindow(s, n.dueReminderMinutesBefore);
+    return !!w && nowMs >= w.from && nowMs < w.until;
+  });
   if (due.length === 0) return null;
   due.sort((a, b) => a.startAt.localeCompare(b.startAt));
   const keys = due.map((s) => s.key);
@@ -4074,6 +4067,22 @@ function dueReminder(data, device, now, state) {
     keys
   };
 }
+function reminderWindow(item, deviceDefault) {
+  const min = item.reminderMin === void 0 ? deviceDefault : item.reminderMin;
+  if (min === null) return null;
+  const day = item.startAt.slice(0, 10);
+  const allDay = item.allDay || item.startAt.length < 16;
+  if (allDay || min < 0) {
+    const days = min >= 1440 ? Math.floor(min / 1440) : 0;
+    const from = berlinWallToDate(`${addDays(day, -days)}T${MORNING}`).getTime();
+    let until = berlinWallToDate(`${day}T12:00`).getTime();
+    if (!allDay) until = Math.min(until, berlinWallToDate(item.startAt).getTime());
+    return { from, until };
+  }
+  const start = berlinWallToDate(item.startAt).getTime();
+  const remindAt = start - min * 6e4;
+  return { from: remindAt - EARLY_MS, until: Math.max(start, remindAt + LATE_MS) };
+}
 function myEvents(data, device, from, to) {
   return eventsBetween(data.events ?? [], from, to).filter((i) => i.startAt.slice(0, 10) >= from && involves(i.event, device.personId)).map((i) => ({
     kind: "event",
@@ -4081,7 +4090,8 @@ function myEvents(data, device, from, to) {
     title: i.event.title,
     startAt: i.startAt,
     allDay: i.allDay,
-    url: eventUrl(i.event.id, i.date)
+    url: eventUrl(i.event.id, i.date),
+    reminderMin: i.event.reminderMin
   }));
 }
 function dailySummary(data, device, now, state) {
@@ -4113,8 +4123,9 @@ function pruneState(state, now, days = 3) {
 function reminderRun(data, state, now) {
   const next = { sent: { ...state.sent }, summaries: { ...state.summaries } };
   const messages = [];
-  const today = berlinParts(now).date;
+  const { date: today, time } = berlinParts(now);
   const at = now.toISOString();
+  if (minutesOf(time) < minutesOf(ACTIVE_FROM)) return { messages, state: pruneState(next, now) };
   for (const device of activeDevices(data)) {
     if (isQuiet(device, now)) continue;
     const reminder = dueReminder(data, device, now, next);

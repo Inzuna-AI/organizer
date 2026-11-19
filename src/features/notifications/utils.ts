@@ -19,9 +19,12 @@ export const NOTIFY_DEFAULTS: NotifySettings = {
 
 export const REMINDER_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'off', label: 'Aus' },
+  { value: '0', label: 'Zum Zeitpunkt' },
+  { value: '5', label: '5 Minuten vorher' },
   { value: '15', label: '15 Minuten vorher' },
   { value: '30', label: '30 Minuten vorher' },
   { value: '60', label: '1 Stunde vorher' },
+  { value: '1440', label: '1 Tag vorher' },
   { value: '-1', label: 'Am Morgen (7 Uhr)' },
 ]
 

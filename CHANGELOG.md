@@ -3,6 +3,15 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.1.0] – 2026-11-19
+
+### Neu
+- Erinnerung pro Aufgabe und Termin: Im Formular lässt sich „Erinnerung“ wählen (Standard, keine, zum Zeitpunkt, 5/15/30 Minuten, 1 Stunde oder 1 Tag vorher; ganztägig am Morgen oder am Vortag)
+- Geräte-Standard unter Benachrichtigungen um „Zum Zeitpunkt“, „5 Minuten vorher“ und „1 Tag vorher“ erweitert
+
+### Geändert
+- Erinnerungen werden zwischen 6 und 23 Uhr alle 30 Minuten geprüft statt stündlich (etwa eine Viertelstunde genau). Nachts Fälliges kommt um 6 Uhr. Dafür im Daten-Repo `scripts/notify.mjs` und `.github/workflows/reminders.yml` aktualisieren
+
 ## [1.0.0] – 2026-11-19
 
 ### Neu

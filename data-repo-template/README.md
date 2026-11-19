@@ -8,7 +8,7 @@ Daten des Haushalts-Organizers. **Wird von der App verwaltet, bitte nicht von Ha
 | `notify-state.json` | Bereits verschickte Erinnerungen (legt der Workflow an) |
 | `backups/` | Sicherungen vor Datenmigrationen (legt die App an) |
 | `scripts/notify.mjs` | Versand der Push-Benachrichtigungen. Automatisch erzeugt im Code-Repo (`npm run build:notify`), nicht bearbeiten |
-| `.github/workflows/` | `notify-on-change.yml` (bei jeder Änderung) und `reminders.yml` (stündlich) |
+| `.github/workflows/` | `notify-on-change.yml` (bei jeder Änderung) und `reminders.yml` (alle 30 Minuten, 6–23 Uhr) |
 
 ## Einrichtung der Push-Benachrichtigungen (einmalig)
 
@@ -27,5 +27,5 @@ Auf dem iPhone funktioniert Push nur, wenn die App zum Home-Bildschirm hinzugef�
 
 - Die Workflows schreiben keine Aufgabeninhalte ins Log, nur Anzahlen.
 - Abgelaufene Push-Anmeldungen (HTTP 404/410) werden automatisch aus `data.json` entfernt.
-- Verbrauch: ca. 720 Actions-Minuten im Monat für die stündlichen Erinnerungen plus ca. 1 Minute pro
+- Verbrauch: ca. 1.150 Actions-Minuten im Monat für die Erinnerungen (alle 30 Minuten) plus ca. 1 Minute pro
   gespeicherter Änderung. Private Repos haben 2.000 Minuten frei (GitHub → Settings → Billing).

@@ -10,6 +10,8 @@ import { berlinDateString } from '@/lib/dates'
 import { buildRule, parseRule } from '@/lib/recurrence'
 import { ChecklistEditor } from './ChecklistEditor'
 import { RecurrenceEditor, type RecurrenceValue } from '@/components/ui/RecurrenceEditor'
+import { ReminderField } from '@/components/ui/ReminderField'
+import { normalizeReminder, type ReminderMin } from '@/lib/reminders'
 import {
   buildStartAt,
   DURATION_OPTIONS,
@@ -55,6 +57,7 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
     mode: initial?.recurrenceMode ?? 'fixed',
     rotation: initial?.rotation ?? false,
   }))
+  const [reminderMin, setReminderMin] = useState<ReminderMin>(initial?.reminderMin)
   const ruleDate = seriesDate ?? date
 
   function changeRecurrence(v: RecurrenceValue) {
@@ -89,6 +92,7 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
       recurrenceRule: recurrence.spec && startAt ? buildRule(recurrence.spec, ruleDate || date, recurrence.mode) : null,
       recurrenceMode: recurrence.mode,
       rotation: recurrence.rotation && assigneeIds.length >= 2,
+      reminderMin: normalizeReminder(reminderMin, allDay),
     })
   }
 
@@ -137,6 +141,7 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
               </option>
             ))}
           </SelectField>
+          <ReminderField value={reminderMin} onChange={setReminderMin} allDay={!time} disabled={!date} />
         </div>
       </Card>
 

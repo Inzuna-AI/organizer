@@ -1,4 +1,4 @@
-// Erinnerungen vor Fälligkeit und tägliche Zusammenfassung (Workflow „reminders“, stündlich).
+// Erinnerungen vor Fälligkeit und tägliche Zusammenfassung (Workflow „reminders“, alle 30 Minuten von 6 bis 23 Uhr).
 import type { DataFile, Device } from '@/types/data'
 import { addDays } from '@/lib/dates'
 import { eventsBetween, involves } from '@/lib/events'
@@ -27,10 +27,14 @@ export interface NotifyState {
 
 export const emptyState = (): NotifyState => ({ sent: {}, summaries: {} })
 
-/** Erinnerungen „am Morgen“ und für ganztägige Aufgaben ab dieser Uhrzeit (bis Mittag) */
+/** Erinnerungen „am Morgen“ und für ganztägige Einträge ab dieser Uhrzeit (bis Mittag des Tages) */
 export const MORNING = '07:00'
-/** Der Workflow läuft stündlich: lieber bis zu 30 Minuten früher als zu spät erinnern */
-const EARLY_MS = 30 * 60_000
+/** Vor dieser Uhrzeit wird nichts verschickt; nachts Fälliges kommt mit dem ersten Lauf ab 6 Uhr */
+export const ACTIVE_FROM = '06:00'
+/** Der Workflow läuft alle 30 Minuten: bis zu 15 Minuten früher erinnern … */
+const EARLY_MS = 15 * 60_000
+/** … oder bis zu 30 Minuten später, falls GitHub den Lauf verzögert (aber nicht nach Beginn, außer „zum Zeitpunkt“) */
+const LATE_MS = 30 * 60_000
 /** Zusammenfassung höchstens so lange nach der Wunschzeit nachholen (verspätete Läufe) */
 const SUMMARY_WINDOW_MIN = 180
 
@@ -50,9 +54,7 @@ export function dueReminder(
 ): { payload: PushPayload; keys: string[] } | null {
   const n = device.notify
   if (!n.dueReminder) return null
-  const { date: today, time } = berlinParts(now)
-  const minutes = minutesOf(time)
-  const morning = minutes >= minutesOf(MORNING) && minutes < 12 * 60
+  const today = berlinParts(now).date
   const nowMs = now.getTime()
 
   const candidates: DueItem[] = [
@@ -66,22 +68,14 @@ export function dueReminder(
         startAt: s.startAt,
         allDay: s.allDay,
         url: taskUrl(s.task.id, s.date),
+        reminderMin: s.task.reminderMin,
       })),
   ]
-  const due: DueItem[] = []
-  for (const s of candidates) {
-    if (state.sent[s.key]) continue
-    const day = s.startAt.slice(0, 10)
-    if (s.allDay || n.dueReminderMinutesBefore < 0) {
-      // Ganztägig oder „am Morgen des Tages“: morgens für die Einträge von heute
-      const notStarted = s.allDay || berlinWallToDate(s.startAt).getTime() > nowMs
-      if (day === today && morning && notStarted) due.push(s)
-    } else {
-      const start = berlinWallToDate(s.startAt).getTime()
-      const remindAt = start - n.dueReminderMinutesBefore * 60_000
-      if (nowMs >= remindAt - EARLY_MS && nowMs < start) due.push(s)
-    }
-  }
+  const due = candidates.filter((s) => {
+    if (state.sent[s.key]) return false
+    const w = reminderWindow(s, n.dueReminderMinutesBefore)
+    return !!w && nowMs >= w.from && nowMs < w.until
+  })
   if (due.length === 0) return null
 
   due.sort((a, b) => a.startAt.localeCompare(b.startAt))
@@ -109,6 +103,33 @@ interface DueItem {
   startAt: string
   allDay: boolean
   url: string
+  /** Erinnerung des Eintrags; undefined = Standard des Geräts */
+  reminderMin?: number | null
+}
+
+/**
+ * Zeitraum [from, until) in ms, in dem ein Lauf die Erinnerung verschickt; null = keine Erinnerung.
+ * deviceDefault gilt für Einträge ohne eigene Erinnerung (-1 = am Morgen des Tages).
+ */
+export function reminderWindow(
+  item: { startAt: string; allDay: boolean; reminderMin?: number | null },
+  deviceDefault: number,
+): { from: number; until: number } | null {
+  const min = item.reminderMin === undefined ? deviceDefault : item.reminderMin
+  if (min === null) return null
+  const day = item.startAt.slice(0, 10)
+  const allDay = item.allDay || item.startAt.length < 16
+  if (allDay || min < 0) {
+    // Am Morgen des Tages bzw. so viele Tage vorher, bis Mittag des Tages
+    const days = min >= 1440 ? Math.floor(min / 1440) : 0
+    const from = berlinWallToDate(`${addDays(day, -days)}T${MORNING}`).getTime()
+    let until = berlinWallToDate(`${day}T12:00`).getTime()
+    if (!allDay) until = Math.min(until, berlinWallToDate(item.startAt).getTime())
+    return { from, until }
+  }
+  const start = berlinWallToDate(item.startAt).getTime()
+  const remindAt = start - min * 60_000
+  return { from: remindAt - EARLY_MS, until: Math.max(start, remindAt + LATE_MS) }
 }
 
 /** Termine, bei denen die Person des Geräts dabei ist (ohne Personen = alle), die im Zeitraum beginnen */
@@ -122,6 +143,7 @@ function myEvents(data: DataFile, device: Device, from: string, to: string): Due
       startAt: i.startAt,
       allDay: i.allDay,
       url: eventUrl(i.event.id, i.date),
+      reminderMin: i.event.reminderMin,
     }))
 }
 
@@ -173,8 +195,10 @@ export function reminderRun(
 ): { messages: Array<{ device: Device; payload: PushPayload }>; state: NotifyState } {
   const next: NotifyState = { sent: { ...state.sent }, summaries: { ...state.summaries } }
   const messages: Array<{ device: Device; payload: PushPayload }> = []
-  const today = berlinParts(now).date
+  const { date: today, time } = berlinParts(now)
   const at = now.toISOString()
+  // Nachts nichts verschicken (auch bei manuellem Start); Fälliges kommt mit dem ersten Lauf ab 6 Uhr
+  if (minutesOf(time) < minutesOf(ACTIVE_FROM)) return { messages, state: pruneState(next, now) }
 
   for (const device of activeDevices(data)) {
     // In Ruhezeiten nichts verschicken und nichts als erledigt markieren
