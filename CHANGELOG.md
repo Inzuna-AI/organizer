@@ -3,6 +3,19 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [0.3.0] – 2026-11-19
+
+### Neu
+- Kalender mit Monats-, Wochen- und Tagesansicht (Woche beginnt am Montag)
+- Einträge in der Farbe des Raums, mit Kürzel-Badges der zuständigen Personen (Woche und Tag)
+- Umschalter „Farbe nach Raum / Person“
+- Aufgaben per Drag and Drop verschieben (Datum und Uhrzeit, 15-Minuten-Raster); am unteren Rand ziehen ändert die Dauer
+- Inbox-Leiste über dem Kalender: Aufgaben ohne Datum in den Kalender ziehen
+- Auf dem Handy: Eintrag lange drücken, dann ziehen
+- Freien Platz antippen legt eine Aufgabe mit diesem Datum und dieser Uhrzeit an; Eintrag antippen öffnet die Aufgabe
+- Erledigte Aufgaben erscheinen blass und durchgestrichen
+- Der Kalender wird erst beim Öffnen geladen, damit die App schnell startet
+
 ## [0.2.1] – 2026-11-19
 
 ### Neu
