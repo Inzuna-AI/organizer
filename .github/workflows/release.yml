@@ -1,0 +1,49 @@
+name: Release
+
+# Bei Tag vX.Y.Z: testen, bauen, GitHub Release mit ZIP und CHANGELOG-Eintrag anlegen
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Version mit package.json abgleichen
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "Tag $GITHUB_REF_NAME passt nicht zu package.json ($PKG)"
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
+
+      - name: Build als ZIP packen
+        run: cd dist && zip -r "../organizer-${GITHUB_REF_NAME}.zip" .
+
+      - name: Release-Beschreibung aus CHANGELOG
+        run: node scripts/changelog-entry.mjs "${GITHUB_REF_NAME#v}" > release-notes.md
+
+      - name: GitHub Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "organizer-${GITHUB_REF_NAME}.zip" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md
