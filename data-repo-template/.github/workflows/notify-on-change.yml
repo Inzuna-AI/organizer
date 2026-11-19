@@ -1,0 +1,46 @@
+name: Benachrichtigungen bei Änderungen
+
+# Läuft bei jedem Commit auf data.json (die App speichert gebündelt, ca. 2 s nach der letzten Änderung).
+# Vergleicht den alten mit dem neuen Stand und schickt Web-Push an die registrierten Geräte.
+on:
+  push:
+    paths:
+      - data.json
+
+permissions:
+  contents: write
+
+# Nicht parallel zu „Erinnerungen“, beide können data.json schreiben (abgelaufene Anmeldungen)
+concurrency:
+  group: notify
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm install --no-audit --no-fund --omit=dev
+
+      - name: Benachrichtigungen senden
+        run: node scripts/notify.mjs change
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+
+      - name: Abgelaufene Anmeldungen speichern
+        run: |
+          if git diff --quiet -- data.json; then exit 0; fi
+          git config user.name "organizer-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "[skip ci] abgelaufene Push-Anmeldungen entfernt" -- data.json
+          git push -q || echo "Push nicht möglich (inzwischen neuer Stand), der nächste Lauf versucht es erneut."

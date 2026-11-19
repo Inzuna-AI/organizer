@@ -1,0 +1,9 @@
+{
+  "name": "organizer-data",
+  "private": true,
+  "type": "module",
+  "description": "Daten des Haushalts-Organizers und Workflows für Push-Benachrichtigungen",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

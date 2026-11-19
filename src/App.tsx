@@ -14,6 +14,11 @@ import { ShoppingPage } from '@/features/shopping'
 import { RoomsPage } from '@/features/rooms'
 import { PersonsPage } from '@/features/persons'
 import { SearchPage } from '@/features/search'
+import { NotificationsPage, notificationActions } from '@/features/notifications'
+import { listenForNavigation } from '@/lib/push'
+
+// Tipp auf eine Benachrichtigung, während die App offen ist
+listenForNavigation()
 
 const TITLES: Record<string, string> = {
   '/': 'Heute',
@@ -25,6 +30,7 @@ const TITLES: Record<string, string> = {
   '/einstellungen': 'Einstellungen',
   '/einstellungen/raeume': 'Räume',
   '/einstellungen/personen': 'Personen',
+  '/einstellungen/benachrichtigungen': 'Benachrichtigungen',
 }
 
 /** Übergeordnete Seite einer Unterseite, z. B. /aufgaben/123 → /aufgaben */
@@ -41,6 +47,12 @@ function Shell() {
   const parent = parentOf(pathname)
   const goBack = useGoBack(parent ?? '/')
   const navigate = useNavigate()
+  const device = useAppStore((s) => s.device)
+  const hasData = useAppStore((s) => !!s.data)
+  // Push-Eintrag dieses Geräts aktuell halten (Person, Name, erneuerte Anmeldung)
+  useEffect(() => {
+    if (hasData) void notificationActions.refresh()
+  }, [device, hasData])
   const title = TITLES[pathname] ?? (pathname.startsWith('/aufgaben/') ? 'Aufgabe' : 'Organizer')
   // Lupe auf den Hauptseiten, die Aufgaben zeigen
   const searchable = pathname === '/' || pathname === '/aufgaben' || pathname === '/kalender'
@@ -78,6 +90,7 @@ function Shell() {
           <Route path="/einstellungen" element={<SettingsPage />} />
           <Route path="/einstellungen/raeume" element={<RoomsPage />} />
           <Route path="/einstellungen/personen" element={<PersonsPage />} />
+          <Route path="/einstellungen/benachrichtigungen" element={<NotificationsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

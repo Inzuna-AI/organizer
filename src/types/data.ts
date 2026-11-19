@@ -87,6 +87,7 @@ export interface NotifySettings {
   newShoppingItem: boolean
   onlyMyTasks: boolean
   dueReminder: boolean
+  /** 15 / 30 / 60 Minuten vorher, -1 = am Morgen des Tages */
   dueReminderMinutesBefore: number
   dailySummary: boolean
   dailySummaryTime: string
@@ -102,6 +103,8 @@ export interface Device extends BaseRecord {
     keys: { p256dh: string; auth: string }
   } | null
   notify: NotifySettings
+  /** „Testbenachrichtigung senden“: Der Workflow schickt einen Test, wenn sich der Wert ändert. */
+  testRequestedAt?: string | null
 }
 
 export interface DataFile {

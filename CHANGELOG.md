@@ -3,6 +3,19 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [0.6.0] – 2026-11-19
+
+### Neu
+- Push-Benachrichtigungen: Einstellungen → Benachrichtigungen → „Benachrichtigungen aktivieren“ (auf dem iPhone nur aus der Home-Bildschirm-App, mit Anleitung)
+- Pro Gerät einstellbar: neue Aufgabe, mir zugewiesen (auch durch Rotation), erledigt, geändert/verschoben, neue Einkaufsartikel (gebündelt), nur meine Aufgaben, nur bestimmte Räume
+- Erinnerung vor Fälligkeit (15 / 30 / 60 Minuten oder am Morgen), tägliche Zusammenfassung zur gewählten Uhrzeit, Ruhezeiten
+- „Testbenachrichtigung senden“: kommt echt über GitHub, nach ca. 30–60 Sekunden
+- Tipp auf eine Benachrichtigung öffnet die App direkt bei der Aufgabe
+- Vorlage für das Daten-Repo (`data-repo-template/`): Workflows `notify-on-change` und `reminders` (stündlich) mit `scripts/notify.mjs`; abgelaufene Anmeldungen werden automatisch entfernt
+
+### Geändert
+- `scripts/notify.mjs` wird aus dem App-Code erzeugt (`npm run build:notify`) und nutzt dieselbe Wiederholungslogik; der Deploy prüft, dass die Datei aktuell ist
+
 ## [0.5.0] – 2026-11-19
 
 ### Neu

@@ -152,6 +152,8 @@ Jeder Datensatz hat `id` (UUID), `updatedAt` (ISO-Zeitstempel), `deleted` (bool)
 - `priority`: `low` | `medium` | `high`
 - `recurrenceMode`: `fixed` = fester Rhythmus | `after_completion` = X Tage nach Erledigung
 - Aufgaben ohne `startAt` liegen in der **Inbox**.
+- `devices[].notify.dueReminderMinutesBefore`: 15 / 30 / 60, `-1` = am Morgen des Tages (7 Uhr). `quietHours` kann `null` sein (keine Ruhezeiten).
+- `devices[].testRequestedAt` (optional): Ändert sich der Wert, schickt `notify-on-change` eine Testbenachrichtigung an dieses Gerät.
 - Bei einer Änderung von `schemaVersion` wird beim Laden automatisch migriert (`src/lib/migrations.ts`).
 
 ## Personen und Geräte
@@ -331,15 +333,18 @@ organizer/
 │   │   ├── push.ts                # Subscription anlegen/entfernen, Berechtigung
 │   │   └── dates.ts               # Datumshelfer (deutsch, Europe/Berlin)
 │   ├── sw.ts                      # Service Worker: Offline-Cache, push, notificationclick
+│   ├── notify/                    # Benachrichtigungslogik für Node (changes, reminders, time, common + notify.test.ts); nur @/lib und @/types
 │   ├── types/data.ts              # Gesamttyp von data.json, setzt sich aus den Feature-Typen zusammen
 │   └── styles/index.css           # Tailwind-Einstieg
 ├── data-repo-template/            # Vorlage für das Daten-Repo (ohne Daten, ohne Secrets)
 │   ├── .github/workflows/
 │   │   ├── notify-on-change.yml
 │   │   └── reminders.yml
-│   ├── scripts/notify.mjs
-│   ├── package.json               # Abhängigkeit: web-push, rrule
+│   ├── scripts/notify.mjs         # ERZEUGT mit `npm run build:notify`, nicht von Hand bearbeiten
+│   ├── package.json               # Abhängigkeit: nur web-push (rrule ist im Bundle)
 │   └── README.md
+├── notify/main.ts                 # Node-Einstieg von notify.mjs: data.json lesen, git show HEAD~1, web-push senden
+├── scripts/build-notify.mjs       # esbuild: src/notify + notify/main.ts → data-repo-template/scripts/notify.mjs
 ├── .gitignore                     # u. a. node_modules, dist
 ├── CHANGELOG.md                   # Versionsgeschichte (Grundlage für die Releases)
 ├── CLAUDE.md                      # Diese Datei
@@ -363,7 +368,7 @@ organizer-data/
 └── README.md                  # Hinweis: Wird von der App verwaltet, nicht von Hand bearbeiten
 ```
 
-Die Erinnerungslogik in `scripts/notify.mjs` muss dieselben Wiederholungsregeln verwenden wie `src/lib/recurrence.ts`. Gleiche Bibliothek (rrule.js), gleiche Regeln, idealerweise mit gemeinsamen Testfällen.
+Die Erinnerungslogik in `scripts/notify.mjs` muss dieselben Wiederholungsregeln verwenden wie `src/lib/recurrence.ts`. Deshalb wird `notify.mjs` aus dem App-Code gebaut (`npm run build:notify`) und mit ins Code-Repo committet; der Deploy-Workflow bricht ab, wenn die Datei nicht aktuell ist. Nach Änderungen an `src/notify`, `src/lib/recurrence.ts` o. Ä. die neue Datei ins Daten-Repo kopieren.
 
 ### Aufbau eines Feature-Ordners
 Jedes Feature ist in sich abgeschlossen. Beispiel:

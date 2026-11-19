@@ -27,6 +27,11 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      # data-repo-template/scripts/notify.mjs muss zum aktuellen Code passen
+      - name: notify.mjs aktuell?
+        run: |
+          npm run build:notify
+          git diff --exit-code --ignore-cr-at-eol data-repo-template/scripts/notify.mjs || (echo "Bitte 'npm run build:notify' ausführen und committen." && exit 1)
       - run: npm run build
         env:
           VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}

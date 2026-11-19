@@ -44,6 +44,24 @@ export default tseslint.config(
     },
   },
   {
+    // Benachrichtigungslogik läuft in Node (GitHub Actions): nur lib und types, kein Store, keine Features
+    files: ['src/notify/**/*.ts', 'notify/**/*.ts'],
+    languageOptions: { globals: globals.node },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/features', '@/features/**', '**/features/**', '@/store', '@/store/**', '@/components/**'],
+              message: 'src/notify läuft in Node und darf nur @/lib und @/types verwenden.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['scripts/**/*.mjs', '*.js'],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },

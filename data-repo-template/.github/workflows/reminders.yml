@@ -1,0 +1,47 @@
+name: Erinnerungen
+
+# Stündlich: Erinnerungen vor Fälligkeit und tägliche Zusammenfassung.
+# Geplante Läufe können sich um einige Minuten verzögern, Erinnerungen sind nicht minutengenau.
+# Verbrauch: ca. 720 Actions-Minuten im Monat (2.000 sind bei privaten Repos frei).
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: notify
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm install --no-audit --no-fund --omit=dev
+
+      - name: Erinnerungen senden
+        run: node scripts/notify.mjs reminders
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+
+      # notify-state.json merkt sich Verschicktes. Commits mit dem Actions-Token lösen keine
+      # weiteren Workflows aus; der Pfadfilter von notify-on-change greift zusätzlich nur bei data.json.
+      - name: Stand speichern
+        run: |
+          git add notify-state.json data.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "organizer-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "[skip ci] erinnerungen"
+          git push -q || (git pull -q --rebase && git push -q) || echo "Push nicht möglich, der nächste Lauf versucht es erneut."

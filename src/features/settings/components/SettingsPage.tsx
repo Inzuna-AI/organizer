@@ -114,11 +114,12 @@ export function SettingsPage() {
           {[
             { to: '/einstellungen/raeume', label: '🏠 Räume', count: data ? alive(data.rooms).length : 0 },
             { to: '/einstellungen/personen', label: '👥 Personen', count: persons.length },
+            { to: '/einstellungen/benachrichtigungen', label: '🔔 Benachrichtigungen', count: null },
           ].map((l) => (
             <li key={l.to}>
               <Link to={l.to} className="flex min-h-12 items-center justify-between py-1">
                 <span>{l.label}</span>
-                <span className="text-sm text-slate-500">{l.count} ›</span>
+                <span className="text-sm text-slate-500">{l.count ?? ''} ›</span>
               </Link>
             </li>
           ))}
