@@ -3,6 +3,21 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [0.2.0] – 2026-11-19
+
+### Neu
+- Aufgaben anlegen und bearbeiten: Titel, Beschreibung, Raum, Priorität, Datum, Uhrzeit, Dauer
+- Aufgaben einer oder mehreren Personen zuordnen
+- Checklisten (Unteraufgaben) mit Fortschrittsanzeige
+- Inbox für Aufgaben ohne Datum
+- Aufgabenliste mit den Ansichten Geplant, Inbox und Erledigt, gruppiert nach Tagen
+- Filter nach Raum und Person sowie „Meine Aufgaben“
+- Heute-Ansicht als Startseite: überfällige und heutige Aufgaben, heute erledigte, Inbox und Morgen auf einen Blick, Umschalter „Meine/Alle“
+- Abhaken direkt in der Liste
+- Räume verwalten (Name, Farbe, Icon, Reihenfolge)
+- Personen verwalten (Name, Kürzel, Farbe)
+- „+“-Button zum schnellen Anlegen
+
 ## [0.1.0] – 2026-11-19
 
 ### Neu
