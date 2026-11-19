@@ -4,6 +4,8 @@ Gemeinsamer Haushalts-Organizer für zwei Personen als Web-App (PWA). Kein Login
 
 Details zu Aufbau, Datenmodell und Phasen: [CLAUDE.md](CLAUDE.md) · Versionen: [CHANGELOG.md](CHANGELOG.md)
 
+**Neu bei GitHub?** Die Schritt-für-Schritt-Anleitung (Repos anlegen, Token, Handys) steht in [docs/ANLEITUNG-GITHUB.md](docs/ANLEITUNG-GITHUB.md).
+
 ## Lokal entwickeln und testen
 
 Voraussetzung: Node.js 20 oder neuer.
