@@ -507,6 +507,20 @@ Hinweise zur Umsetzung:
 - Fehlen die VAPID-Secrets, überspringen die Workflows mit einem Hinweis, statt fehlzuschlagen.
 - VAPID-Schlüssel liegen lokal in `.env.vapid` (beide) und `.env.local` (öffentlicher, für lokale Builds), beide von Git ausgeschlossen. Das Daten-Repo heißt auf GitHub inzwischen `Organizer-Data` (Groß-/Kleinschreibung ist der API egal).
 
+### Termine im Kalender (`v1.0.0`, abgeschlossen am 19.11.2026)
+- [x] Eigener Bereich `events` (schemaVersion 2, automatische Migration mit Sicherung)
+- [x] Termine mit Ort, Notiz, ganztägig/mehrtägig, Personen („Ganze Familie“), Wiederholung
+- [x] Sichtbarer Unterschied im Kalender: Termin vollflächig, Aufgabe hell mit ☐/☑
+- [x] Heute-Ansicht („Termine heute“), Suche, Push (neu/geändert, Erinnerung, Zusammenfassung)
+
+Hinweise zur Umsetzung:
+- Feature `events`, Routen `/termine/neu?datum=&uhrzeit=` und `/termine/:id?datum=<ursprüngliches Datum>`; „Zurück“ führt zum Kalender. Reine Logik in `lib/events.ts` (nutzt `lib/recurrence` über einen Adapter, Ausnahmen als Pseudo-Occurrences).
+- Darstellung: eine Person = ihre Farbe; mehrere (nicht alle) = Streifen (`eventBackground`, im `EventContent` als Fläche hinter dem Text); alle oder keine = Familie (`FAMILY_COLOR`, 👪). Aufgaben: Hintergrund Raum-/Personenfarbe mit Alpha `2e`, Klasse `cal-task` (linker Rand 4 px). Der Umschalter „Farbe nach Raum/Person“ gilt nur für Aufgaben.
+- „Nur diesen Termin“ verschiebt nur den Beginn (`exceptions[].movedTo`), die Länge gilt für die Serie. „Ganze Serie“ (`shiftSeries`) verschiebt Start, Wochentage und übernimmt eine neue Länge. Geänderter Serienstart/Regel verwirft Ausnahmen. Wechsel ganztägig ↔ Uhrzeit setzt die Standardlänge.
+- Freier Platz im Kalender und „+“ (Kalender, Heute) fragen per `FabChoice`/`ChoiceDialog` „Termin oder Aufgabe“. `RecurrenceEditor` liegt jetzt in `components/ui` (Props `canRotate?`, `allowAfterCompletion`).
+- Push: `newEvent`/`changedEvent` nur an Personen, die beteiligt sind (leer = alle), Raumfilter gilt nicht. Erinnerungen nutzen die `dueReminder`-Einstellungen, Schlüssel `r|<gerät>|ev:<id>|<start>`. `notify` verträgt Daten ohne `events` (Schema 1).
+- Alte Caches werden beim Start im Speicher migriert (`upgradeCache`, ETag verworfen), damit der nächste Sync das Repo sichert und migriert.
+
 ### Später / optional
 - Sync mit Google- oder Apple-Kalender (z. B. als ICS-Export)
 - Statistiken (erledigte Aufgaben pro Person/Raum)
