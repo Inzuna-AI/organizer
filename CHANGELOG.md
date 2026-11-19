@@ -3,6 +3,19 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [0.4.0] – 2026-11-19
+
+### Neu
+- Wiederkehrende Aufgaben: täglich, werktags, wöchentlich an bestimmten Tagen, alle N Tage/Wochen/Monate/Jahre, monatlich am selben Tag oder am n-ten bzw. letzten Wochentag, jährlich, optional mit Enddatum
+- Modus „Nach Erledigung“: Der nächste Termin wird erst beim Abhaken berechnet (z. B. 14 Tage danach)
+- Rotation: Die Zuständigkeit wechselt bei jedem Termin reihum
+- Einzelne Termine abhaken, überspringen oder einer anderen Person zuweisen („Diesmal zuständig“)
+- Beim Ändern von Datum/Uhrzeit oder Verschieben im Kalender: Frage „Nur diesen Termin“ oder „Ganze Serie“
+- Kalender zeigt alle Termine einer Serie im sichtbaren Zeitraum; Serien sind mit ↻ markiert
+
+### Geändert
+- Heute und Aufgabenliste zeigen bei Serien nur den letzten verpassten Termin als überfällig, dazu heute, morgen und den nächsten offenen Termin
+
 ## [0.3.0] – 2026-11-19
 
 ### Neu

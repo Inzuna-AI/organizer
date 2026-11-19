@@ -1,13 +1,12 @@
 import { Link } from 'react-router'
-import type { Task } from '@/types/data'
 import { berlinDateString, formatDay } from '@/lib/dates'
 import { PersonBadge, usePersonMap } from '@/features/persons'
 import { RoomBadge, useRoomMap } from '@/features/rooms'
 import { taskActions } from '../store'
-import { checklistProgress, formatDuration, isOverdue, taskDate, taskTime } from '../utils'
+import { checklistProgress, formatDuration, isOverdue, taskDate, taskLink, taskTime, type TaskInstance } from '../utils'
 
 interface Props {
-  task: Task
+  task: TaskInstance
   /** Datum anzeigen (z. B. in der Heute-Ansicht bei überfälligen) */
   showDate?: boolean
 }
@@ -32,7 +31,7 @@ export function TaskItem({ task, showDate = false }: Props) {
     >
       <button
         type="button"
-        onClick={() => taskActions.setDone(task.id, !done)}
+        onClick={() => taskActions.toggle(task)}
         aria-label={done ? `„${task.title}“ wieder öffnen` : `„${task.title}“ erledigen`}
         aria-pressed={done}
         className="flex w-14 shrink-0 items-center justify-center active:bg-slate-50"
@@ -49,7 +48,7 @@ export function TaskItem({ task, showDate = false }: Props) {
           )}
         </span>
       </button>
-      <Link to={`/aufgaben/${task.id}`} className="min-w-0 flex-1 py-3 pr-3">
+      <Link to={taskLink(task)} className="min-w-0 flex-1 py-3 pr-3">
         <div className="flex items-start gap-2">
           <p className={`min-w-0 flex-1 font-medium ${done ? 'text-slate-400 line-through' : ''}`}>
             {task.priority === 'high' && !done && (
@@ -73,6 +72,11 @@ export function TaskItem({ task, showDate = false }: Props) {
             <span className={overdue ? 'font-medium text-red-600' : ''}>{formatDay(date, today)}</span>
           )}
           {time && <span>{time} Uhr</span>}
+          {task.recurrenceRule && (
+            <span title="Wiederkehrend" aria-label="Wiederkehrend">
+              ↻{task.moved ? ' verschoben' : ''}
+            </span>
+          )}
           {task.durationMin ? <span>{formatDuration(task.durationMin)}</span> : null}
           {room && <RoomBadge room={room} />}
           {progress.total > 0 && (

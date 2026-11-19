@@ -1,8 +1,17 @@
 // Reine Aufgabenlogik: Datum/Zeit, Filter, Sortierung, Gruppierung, Heute-Ansicht.
 
-import type { ChecklistItem, Priority, Task } from '@/types/data'
+import type { ChecklistItem, Occurrence, Priority, Task } from '@/types/data'
 import { addDays, formatDay } from '@/lib/dates'
-import { newBase } from '@/lib/records'
+import { newBase, touch } from '@/lib/records'
+import {
+  doneInstances,
+  expandRange,
+  isSeries,
+  nextOpen,
+  occurrenceId,
+  overdueInstance,
+  type Instance,
+} from '@/lib/recurrence'
 
 export const PRIORITY_LABEL: Record<Priority, string> = {
   low: 'Niedrig',
@@ -58,19 +67,121 @@ export function checklistProgress(items: ChecklistItem[]): { done: number; total
 
 export type TaskInput = Pick<
   Task,
-  'title' | 'description' | 'roomId' | 'priority' | 'startAt' | 'allDay' | 'durationMin' | 'assigneeIds' | 'checklist'
+  | 'title'
+  | 'description'
+  | 'roomId'
+  | 'priority'
+  | 'startAt'
+  | 'allDay'
+  | 'durationMin'
+  | 'assigneeIds'
+  | 'checklist'
+  | 'recurrenceRule'
+  | 'recurrenceMode'
+  | 'rotation'
 >
 
 export function createTask(input: TaskInput, personId: string | null): Task {
   return {
     ...newBase(personId),
     ...input,
+    // Eine Serie braucht einen Starttermin
+    recurrenceRule: input.startAt ? input.recurrenceRule : null,
     status: 'open',
     completedAt: null,
-    recurrenceRule: null,
-    recurrenceMode: 'fixed',
-    rotation: false,
   }
+}
+
+// ---------- Serien → einzelne Termine ----------
+
+/**
+ * Aufgabe, wie sie in Listen erscheint. Bei Serien ein einzelner Termin:
+ * startAt, status, completedAt und assigneeIds gelten für diesen Termin.
+ */
+export interface TaskInstance extends Task {
+  /** ursprüngliches Datum des Termins (nur bei Serien) */
+  occurrenceDate?: string
+  /** Termin wurde einzeln verschoben */
+  moved?: boolean
+  /** wer den Termin abgehakt hat */
+  completedBy?: string | null
+}
+
+export function toTaskInstance(t: Task, i: Instance): TaskInstance {
+  return {
+    ...t,
+    startAt: i.startAt,
+    allDay: i.allDay,
+    status: i.status,
+    completedAt: i.completedAt,
+    assigneeIds: i.assigneeIds,
+    occurrenceDate: i.date,
+    moved: i.moved,
+    completedBy: i.completedBy,
+  }
+}
+
+/** Schlüssel für React-Listen */
+export function instanceKey(t: TaskInstance): string {
+  return t.occurrenceDate ? `${t.id}:${t.occurrenceDate}` : t.id
+}
+
+/** Link zur Bearbeitung (bei Serien mit Termin) */
+export function taskLink(t: TaskInstance): string {
+  return t.occurrenceDate ? `/aufgaben/${t.id}?datum=${t.occurrenceDate}` : `/aufgaben/${t.id}`
+}
+
+/**
+ * Für Listen (Heute, Geplant, Erledigt): einmalige Aufgaben unverändert, Serien als einzelne Termine:
+ * der letzte verpasste (überfällig), alle von heute und morgen, der nächste offene und alle erledigten.
+ */
+export function listInstances(tasks: Task[], occurrences: Occurrence[], today: string): TaskInstance[] {
+  const out: TaskInstance[] = []
+  for (const t of tasks) {
+    if (t.deleted) continue
+    if (!isSeries(t)) {
+      out.push(t)
+      continue
+    }
+    const byDate = new Map<string, Instance>()
+    const add = (i: Instance | null) => {
+      if (i) byDate.set(i.date, i)
+    }
+    add(overdueInstance(t, occurrences, today))
+    expandRange(t, occurrences, today, addDays(today, 1)).forEach(add)
+    add(nextOpen(t, occurrences, today))
+    doneInstances(t, occurrences).forEach(add)
+    for (const i of byDate.values()) out.push(toTaskInstance(t, i))
+  }
+  return out
+}
+
+/** Occurrence anlegen oder ändern (deterministische id, gelöschte werden wiederbelebt). */
+export function upsertOccurrence(
+  list: Occurrence[],
+  taskId: string,
+  date: string,
+  personId: string | null,
+  changes: Partial<Occurrence>,
+): Occurrence[] {
+  const id = occurrenceId(taskId, date)
+  const existing = list.find((o) => o.id === id)
+  if (existing) {
+    return list.map((o) => (o.id === id ? touch(o, personId, { deleted: false, ...changes }) : o))
+  }
+  const rec: Occurrence = {
+    ...newBase(personId),
+    id,
+    taskId,
+    originalDate: date,
+    movedTo: null,
+    status: 'open',
+    completedAt: null,
+    completedBy: null,
+    assigneeId: null,
+    ...changes,
+  }
+  return [...list, rec]
 }
 
 // ---------- Filter ----------
@@ -100,7 +211,7 @@ export function inView(t: Task, view: TaskView): boolean {
   return t.status === 'open' && !!t.startAt
 }
 
-export function filterTasks(tasks: Task[], f: TaskFilter): Task[] {
+export function filterTasks(tasks: TaskInstance[], f: TaskFilter): TaskInstance[] {
   const out = tasks.filter((t) => inView(t, f.view) && matchesFilter(t, f))
   return f.view === 'done' ? sortDone(out) : sortTasks(out)
 }
@@ -108,7 +219,7 @@ export function filterTasks(tasks: Task[], f: TaskFilter): Task[] {
 // ---------- Sortierung ----------
 
 /** Nach Datum, dann ganztägig vor Uhrzeit, dann Priorität, dann Titel. Inbox nach Priorität/Erstellung. */
-export function sortTasks(tasks: Task[]): Task[] {
+export function sortTasks(tasks: TaskInstance[]): TaskInstance[] {
   return [...tasks].sort((a, b) => {
     const da = taskDate(a) ?? '9999'
     const db = taskDate(b) ?? '9999'
@@ -124,7 +235,7 @@ export function sortTasks(tasks: Task[]): Task[] {
 }
 
 /** Erledigte: zuletzt erledigt zuerst */
-export function sortDone(tasks: Task[]): Task[] {
+export function sortDone(tasks: TaskInstance[]): TaskInstance[] {
   return [...tasks].sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
 }
 
@@ -134,15 +245,15 @@ export interface TaskGroup {
   key: string
   label: string
   overdue?: boolean
-  tasks: Task[]
+  tasks: TaskInstance[]
 }
 
 /** Geplante Aufgaben nach Tag gruppieren, überfällige zuerst in einer eigenen Gruppe. */
-export function groupByDay(tasks: Task[], today: string): TaskGroup[] {
+export function groupByDay(tasks: TaskInstance[], today: string): TaskGroup[] {
   const groups: TaskGroup[] = []
   const overdue = tasks.filter((t) => isOverdue(t, today))
   if (overdue.length) groups.push({ key: 'overdue', label: 'Überfällig', overdue: true, tasks: overdue })
-  const byDay = new Map<string, Task[]>()
+  const byDay = new Map<string, TaskInstance[]>()
   for (const t of tasks) {
     if (isOverdue(t, today)) continue
     const d = taskDate(t)
@@ -159,16 +270,16 @@ export function groupByDay(tasks: Task[], today: string): TaskGroup[] {
 // ---------- Heute-Ansicht ----------
 
 export interface TodayBuckets {
-  overdue: Task[]
-  today: Task[]
+  overdue: TaskInstance[]
+  today: TaskInstance[]
   /** heute erledigt (fällig heute oder heute abgehakt) */
-  doneToday: Task[]
+  doneToday: TaskInstance[]
   inboxCount: number
   tomorrowCount: number
 }
 
 export function todayBuckets(
-  tasks: Task[],
+  tasks: TaskInstance[],
   today: string,
   f: Pick<TaskFilter, 'mineOnly' | 'meId'>,
   completedDay: (iso: string) => string,

@@ -12,8 +12,11 @@ import {
   taskDate,
   taskTime,
   todayBuckets,
+  listInstances,
+  upsertOccurrence,
   type TaskInput,
 } from './utils'
+import { occurrenceId } from '@/lib/recurrence'
 
 const TODAY = '2026-11-19'
 const sameDay = (iso: string) => iso.slice(0, 10)
@@ -30,6 +33,9 @@ function task(over: Partial<Task> = {}): Task {
     durationMin: null,
     assigneeIds: [],
     checklist: [],
+    recurrenceRule: null,
+    recurrenceMode: 'fixed',
+    rotation: false,
   }
   return { ...createTask(input, 'p1'), ...over }
 }
@@ -155,5 +161,52 @@ describe('checklistProgress', () => {
         { id: '2', title: 'b', done: false },
       ]),
     ).toEqual({ done: 1, total: 2 })
+  })
+})
+
+describe('Serien in Listen', () => {
+  it('zeigt überfälligen, heutigen, morgigen und erledigte Termine einer täglichen Serie', () => {
+    const t = task({ startAt: '2026-11-10', allDay: true, recurrenceRule: 'FREQ=DAILY' })
+    const done = {
+      id: occurrenceId(t.id, '2026-11-12'),
+      updatedAt: 'x',
+      deleted: false,
+      createdBy: null,
+      updatedBy: null,
+      taskId: t.id,
+      originalDate: '2026-11-12',
+      movedTo: null,
+      status: 'done' as const,
+      completedAt: '2026-11-12T10:00:00.000Z',
+      completedBy: 'p1',
+      assigneeId: null,
+    }
+    const list = listInstances([t], [done], TODAY)
+    expect(list.map((i) => [i.occurrenceDate, i.status]).sort()).toEqual([
+      ['2026-11-12', 'done'],
+      ['2026-11-18', 'open'],
+      ['2026-11-19', 'open'],
+      ['2026-11-20', 'open'],
+    ])
+    const b = todayBuckets(list, TODAY, { mineOnly: false, meId: null }, sameDay)
+    expect(b.overdue.map((i) => i.occurrenceDate)).toEqual(['2026-11-18'])
+    expect(b.today.map((i) => i.occurrenceDate)).toEqual(['2026-11-19'])
+    expect(b.tomorrowCount).toBe(1)
+  })
+
+  it('wöchentliche Serie zeigt nur den nächsten Termin', () => {
+    const t = task({ startAt: '2026-11-21T10:00', recurrenceRule: 'FREQ=WEEKLY;BYDAY=SA' })
+    expect(listInstances([t], [], TODAY).map((i) => i.startAt)).toEqual(['2026-11-21T10:00'])
+  })
+
+  it('createTask ohne Datum ist nie eine Serie', () => {
+    expect(task({}).recurrenceRule).toBeNull()
+  })
+
+  it('upsertOccurrence legt an und ändert denselben Datensatz', () => {
+    let occs = upsertOccurrence([], 't', '2026-11-21', 'p1', { status: 'done' })
+    occs = upsertOccurrence(occs, 't', '2026-11-21', 'p2', { status: 'open' })
+    expect(occs).toHaveLength(1)
+    expect(occs[0]).toMatchObject({ id: 't:2026-11-21', status: 'open', updatedBy: 'p2' })
   })
 })

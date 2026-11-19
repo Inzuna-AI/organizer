@@ -6,7 +6,10 @@ import { SelectField, TextareaField } from '@/components/ui/Field'
 import { TextField } from '@/components/ui/TextField'
 import { PersonBadge, usePersons } from '@/features/persons'
 import { useRooms } from '@/features/rooms'
+import { berlinDateString } from '@/lib/dates'
+import { buildRule, parseRule } from '@/lib/recurrence'
 import { ChecklistEditor } from './ChecklistEditor'
+import { RecurrenceEditor, type RecurrenceValue } from './RecurrenceEditor'
 import {
   buildStartAt,
   DURATION_OPTIONS,
@@ -21,13 +24,18 @@ interface Props {
   initial?: Task
   /** Vorbelegung für neue Aufgaben */
   defaults?: { date?: string; time?: string; assigneeIds?: string[] }
+  /**
+   * Beim Bearbeiten eines einzelnen Termins: Datum/Uhrzeit im Formular sind die des Termins,
+   * die Regel wird aber vom Serienstart aus gebaut.
+   */
+  seriesDate?: string
   submitLabel: string
   onSubmit: (input: TaskInput) => void
 }
 
 const PRIORITIES: Priority[] = ['low', 'medium', 'high']
 
-export function TaskForm({ initial, defaults, submitLabel, onSubmit }: Props) {
+export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit }: Props) {
   const rooms = useRooms()
   const persons = usePersons()
 
@@ -40,6 +48,20 @@ export function TaskForm({ initial, defaults, submitLabel, onSubmit }: Props) {
   const [duration, setDuration] = useState(initial?.durationMin ? String(initial.durationMin) : '')
   const [assigneeIds, setAssigneeIds] = useState<string[]>(initial?.assigneeIds ?? defaults?.assigneeIds ?? [])
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initial?.checklist ?? [])
+  const [recurrence, setRecurrence] = useState<RecurrenceValue>(() => ({
+    spec: initial?.recurrenceRule && initial.startAt
+      ? parseRule(initial.recurrenceRule, seriesDate ?? initial.startAt.slice(0, 10))
+      : null,
+    mode: initial?.recurrenceMode ?? 'fixed',
+    rotation: initial?.rotation ?? false,
+  }))
+  const ruleDate = seriesDate ?? date
+
+  function changeRecurrence(v: RecurrenceValue) {
+    // Eine Serie braucht einen Starttermin
+    if (v.spec && !date) setDate(berlinDateString())
+    setRecurrence(v)
+  }
 
   // Dauer-Optionen um einen eventuell abweichenden gespeicherten Wert ergänzen
   const durationOptions = DURATION_OPTIONS.includes(Number(duration)) || !duration
@@ -64,6 +86,9 @@ export function TaskForm({ initial, defaults, submitLabel, onSubmit }: Props) {
       durationMin: duration ? Number(duration) : null,
       assigneeIds,
       checklist: checklist.filter((i) => i.title.trim()).map((i) => ({ ...i, title: i.title.trim() })),
+      recurrenceRule: recurrence.spec && startAt ? buildRule(recurrence.spec, ruleDate || date, recurrence.mode) : null,
+      recurrenceMode: recurrence.mode,
+      rotation: recurrence.rotation && assigneeIds.length >= 2,
     })
   }
 
@@ -99,8 +124,8 @@ export function TaskForm({ initial, defaults, submitLabel, onSubmit }: Props) {
           <p className="-mt-2 text-xs text-slate-500">
             {date ? (time ? '' : 'Ohne Uhrzeit = ganztägig.') : 'Ohne Datum landet die Aufgabe in der Inbox.'}
           </p>
-          {date && (
-            <Button variant="ghost" className="-mt-2" onClick={() => { setDate(''); setTime('') }}>
+          {date && !recurrence.spec && (
+            <Button variant="ghost" className="-mt-2" onClick={() => { setDate(''); setTime(''); setRecurrence((r) => ({ ...r, spec: null })) }}>
               Datum entfernen (in die Inbox)
             </Button>
           )}
@@ -113,6 +138,15 @@ export function TaskForm({ initial, defaults, submitLabel, onSubmit }: Props) {
             ))}
           </SelectField>
         </div>
+      </Card>
+
+      <Card>
+        <RecurrenceEditor
+          value={recurrence}
+          onChange={changeRecurrence}
+          date={ruleDate || berlinDateString()}
+          canRotate={assigneeIds.length >= 2}
+        />
       </Card>
 
       <Card>

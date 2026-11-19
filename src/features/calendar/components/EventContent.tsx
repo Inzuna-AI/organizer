@@ -7,12 +7,13 @@ import type { TaskEvent } from '../utils'
  * Monat: nur Titel (Person erkennt man über „Farbe nach Person“).
  */
 export function EventContent(arg: EventContentArg) {
-  const { badges, done, icon } = arg.event.extendedProps as TaskEvent['extendedProps']
+  const { badges, done, icon, recurring } = arg.event.extendedProps as TaskEvent['extendedProps']
   const type = arg.view.type
   const title = (
     <>
       {icon && <span aria-hidden="true">{icon} </span>}
       {arg.event.title}
+      {recurring && <span aria-label="wiederkehrend"> ↻</span>}
     </>
   )
 

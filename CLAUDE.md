@@ -430,13 +430,24 @@ Hinweise zur Umsetzung: Vorschläge stammen auch aus bereits entfernten Artikeln
 - [x] **Drag and Drop** zum Verschieben (Datum/Uhrzeit), auch aus der Inbox in den Kalender
 - [x] Auf dem Handy: Long-Press zum Ziehen, große Touch-Ziele
 
-Hinweise zur Umsetzung: Kürzel-Badges erscheinen in Woche und Tag; in der Monatsansicht ist dafür zu wenig Platz (dort „Farbe nach Person“ nutzen). Kalenderzeiten sind lokale Gerätezeit; `startAt` wird ohne Zeitzone als lokale Wandzeit gespeichert. Long-Press-Verzögerung 350 ms, Raster 15 Minuten. Ansicht und Farbmodus merkt sich das Gerät (`loadPref`). Wiederholungen (Phase 4) müssen im Kalender als einzelne Termine aus der RRULE berechnet werden; aktuell zeigt `tasksToEvents` nur einmalige Aufgaben.
+Hinweise zur Umsetzung: Kürzel-Badges erscheinen in Woche und Tag; in der Monatsansicht ist dafür zu wenig Platz (dort „Farbe nach Person“ nutzen). Kalenderzeiten sind lokale Gerätezeit; `startAt` wird ohne Zeitzone als lokale Wandzeit gespeichert. Long-Press-Verzögerung 350 ms, Raster 15 Minuten. Ansicht und Farbmodus merkt sich das Gerät (`loadPref`). `tasksToEvents` löst Serien für den sichtbaren Zeitraum (`datesSet`) in einzelne Termine auf.
 
 ### Phase 4: Wiederholungen
 - [ ] Wiederholungs-Editor mit den Mustern oben
 - [ ] „Nur dieser Termin / ganze Serie“ beim Bearbeiten und Verschieben
 - [ ] `after_completion`-Modus
 - [ ] Rotation zwischen Personen
+
+Hinweise zur Umsetzung:
+- Die gesamte Logik liegt rein in `lib/recurrence.ts` (rrule.js, „schwebend“ in UTC gerechnet, damit Sommerzeit nichts verschiebt). `notify.mjs` (Phase 6) soll sie übernehmen. Achtung: In Node ist `rrule` CommonJS, dort `import pkg from 'rrule'; const { RRule } = pkg`.
+- `recurrenceRule` ist die RRULE ohne DTSTART; der Serienstart ist `startAt`. Ende als `UNTIL=JJJJMMTTT235959Z`. „Monatlich am 15.“ hat kein BYDAY (Tag kommt aus `startAt`), „am 3./letzten Freitag“ hat `BYDAY=3FR` bzw. `-1FR`.
+- `after_completion` speichert nur Rhythmus und Intervall (z. B. `FREQ=DAILY;INTERVAL=14`). `startAt` ist der aktuelle Termin; beim Abhaken entsteht eine erledigte Occurrence, und `startAt` wird Erledigungsdatum + Intervall.
+- Occurrence-IDs sind deterministisch `<taskId>:<JJJJ-MM-TT>` (ursprüngliches Datum), damit beide Geräte denselben Datensatz anlegen. Kein `schemaVersion`-Wechsel nötig.
+- „Nur diesen Termin“ ändert nur Datum/Uhrzeit (`movedTo`) und Person (`assigneeId`). Titel, Raum, Checkliste usw. gelten immer für die Serie. „Diesmal zuständig“ steht auf der Termin-Seite und gilt ohne Rückfrage nur für den Termin. „Ganze Serie“ verschiebt Serienstart und Wochentage um denselben Abstand.
+- Ändern sich Serienstart oder Regel, werden offene Ausnahmen (verschoben, übersprungen, eigene Person) verworfen; erledigte Termine bleiben als Verlauf.
+- Listen (Heute, Geplant, Erledigt) zeigen pro Serie: den letzten verpassten Termin als überfällig (ältere verfallen still), alle Termine von heute und morgen, den nächsten offenen und alle erledigten (`listInstances`). Termine haben Links `/aufgaben/<id>?datum=<ursprüngliches Datum>`.
+- Rotation: fester Rhythmus nach Position des Termins in der Serie, `after_completion` nach Anzahl erledigter Termine.
+- Im Kalender lassen sich Serien-Termine nicht in der Länge ändern (Dauer gilt für die Serie).
 
 ### Phase 5: Komfort
 - [ ] Suche über alle Aufgaben

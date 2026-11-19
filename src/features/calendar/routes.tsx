@@ -7,14 +7,22 @@ import interactionPlugin, { type DateClickArg, type EventReceiveArg } from '@ful
 import deLocale from '@fullcalendar/core/locales/de'
 import type { DatesSetArg, DayHeaderContentArg, EventClickArg, EventDropArg } from '@fullcalendar/core'
 import type { EventResizeDoneArg } from '@fullcalendar/interaction'
-import type { Task } from '@/types/data'
 import { loadPref, savePref } from '@/lib/storage'
 import { usePersonMap } from '@/features/persons'
 import { useRoomMap } from '@/features/rooms'
-import { isInbox, taskActions, useAllTasks } from '@/features/tasks'
+import { ChoiceDialog } from '@/components/ui/ChoiceDialog'
+import { isInbox, taskActions, useAllTasks, useOccurrences, type TaskInstance } from '@/features/tasks'
 import { EventContent } from './components/EventContent'
 import { InboxStrip } from './components/InboxStrip'
-import { eventColor, moveChange, tasksToEvents, toLocalString, type CalendarView, type ColorMode } from './utils'
+import {
+  eventColor,
+  moveChange,
+  tasksToEvents,
+  toLocalString,
+  type CalendarView,
+  type ColorMode,
+  type TaskEvent,
+} from './utils'
 import './calendar.css'
 
 const VIEWS: Array<{ key: CalendarView; label: string }> = [
@@ -28,6 +36,15 @@ const COLOR_MODES: Array<{ key: ColorMode; label: string }> = [
   { key: 'person', label: 'Person' },
 ]
 
+type Scope = 'one' | 'series'
+
+interface PendingMove {
+  taskId: string
+  date: string
+  startAt: string
+  revert: () => void
+}
+
 const LONG_PRESS_MS = 350
 const SCROLL_TIME = '07:00:00'
 
@@ -35,15 +52,21 @@ export function CalendarPage() {
   const navigate = useNavigate()
   const calRef = useRef<FullCalendar>(null)
   const tasks = useAllTasks()
+  const occurrences = useOccurrences()
   const rooms = useRoomMap()
   const persons = usePersonMap()
 
   const [view, setViewState] = useState<CalendarView>(() => loadPref('calendarView', 'timeGridWeek'))
   const [mode, setModeState] = useState<ColorMode>(() => loadPref('calendarColor', 'room'))
   const [title, setTitle] = useState('')
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null)
+  const [pendingMove, setPendingMove] = useState<PendingMove | null>(null)
 
   const ctx = useMemo(() => ({ mode, rooms, persons }), [mode, rooms, persons])
-  const events = useMemo(() => tasksToEvents(tasks, ctx), [tasks, ctx])
+  const events = useMemo(
+    () => (range ? tasksToEvents(tasks, ctx, { occurrences, ...range }) : []),
+    [tasks, ctx, occurrences, range],
+  )
   const inbox = useMemo(() => tasks.filter((t) => !t.deleted && t.status === 'open' && isInbox(t)), [tasks])
 
   const api = () => calRef.current?.getApi()
@@ -63,6 +86,9 @@ export function CalendarPage() {
 
   function onDatesSet(arg: DatesSetArg) {
     setTitle(arg.view.title)
+    const from = toLocalString(arg.start, true)
+    const to = toLocalString(new Date(arg.end.getTime() - 1), true)
+    setRange((r) => (r?.from === from && r.to === to ? r : { from, to }))
   }
 
   function onDateClick(arg: DateClickArg) {
@@ -74,17 +100,34 @@ export function CalendarPage() {
 
   function onEventClick(arg: EventClickArg) {
     arg.jsEvent.preventDefault()
-    navigate(`/aufgaben/${arg.event.id}`)
+    const p = arg.event.extendedProps as TaskEvent['extendedProps']
+    navigate(p.occurrenceDate ? `/aufgaben/${p.taskId}?datum=${p.occurrenceDate}` : `/aufgaben/${p.taskId}`)
   }
 
   function onEventDrop(arg: EventDropArg) {
     if (!arg.event.start) return arg.revert()
-    taskActions.save(arg.event.id, moveChange(arg.event.start, arg.event.allDay, arg.event.end))
+    const p = arg.event.extendedProps as TaskEvent['extendedProps']
+    const change = moveChange(arg.event.start, arg.event.allDay, arg.event.end)
+    if (p.fixedSeries && p.occurrenceDate) {
+      setPendingMove({ taskId: p.taskId, date: p.occurrenceDate, startAt: change.startAt, revert: arg.revert })
+      return
+    }
+    taskActions.save(p.taskId, change)
+  }
+
+  function onScope(scope: Scope | null) {
+    const m = pendingMove
+    setPendingMove(null)
+    if (!m) return
+    if (scope === 'one') taskActions.saveInstance(m.taskId, m.date, { startAt: m.startAt })
+    else if (scope === 'series') taskActions.moveSeries(m.taskId, m.date, m.startAt)
+    else m.revert()
   }
 
   function onEventResize(arg: EventResizeDoneArg) {
     if (!arg.event.start) return arg.revert()
-    taskActions.save(arg.event.id, moveChange(arg.event.start, arg.event.allDay, arg.event.end, true))
+    const p = arg.event.extendedProps as TaskEvent['extendedProps']
+    taskActions.save(p.taskId, moveChange(arg.event.start, arg.event.allDay, arg.event.end, true))
   }
 
   /** Aus der Inbox in den Kalender gezogen */
@@ -96,7 +139,7 @@ export function CalendarPage() {
     if (taskId && start) taskActions.save(taskId, moveChange(start, arg.event.allDay, null))
   }
 
-  const colorOf = (t: Task) => eventColor(t, ctx)
+  const colorOf = (t: TaskInstance) => eventColor(t, ctx)
 
   return (
     <div className="organizer-calendar space-y-3 p-4">
@@ -165,6 +208,17 @@ export function CalendarPage() {
       <p className="text-center text-xs text-slate-400">
         Tippen auf einen freien Platz legt eine Aufgabe an. Zum Verschieben einen Eintrag lange drücken und ziehen.
       </p>
+
+      <ChoiceDialog<Scope>
+        open={!!pendingMove}
+        title="Wiederkehrenden Termin verschieben"
+        message="Nur diesen Termin verschieben oder die ganze Serie?"
+        choices={[
+          { value: 'one', label: 'Nur diesen Termin' },
+          { value: 'series', label: 'Ganze Serie' },
+        ]}
+        onChoose={onScope}
+      />
     </div>
   )
 }

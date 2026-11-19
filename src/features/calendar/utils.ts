@@ -1,5 +1,7 @@
 // Kalender: reine Logik (Aufgabe → Kalendereintrag, Verschieben → neue Zeit).
-import type { Person, Room, Task } from '@/types/data'
+import type { Occurrence, Person, Room } from '@/types/data'
+import { expandRange, isFixedSeries, isSeries } from '@/lib/recurrence'
+import { toTaskInstance, type TaskInstance } from '@/features/tasks'
 
 export type ColorMode = 'room' | 'person'
 export type CalendarView = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay'
@@ -43,7 +45,7 @@ export interface EventContext {
   persons: Map<string, Person>
 }
 
-export function eventColor(task: Task, ctx: EventContext): string {
+export function eventColor(task: TaskInstance, ctx: EventContext): string {
   if (ctx.mode === 'room') return (task.roomId && ctx.rooms.get(task.roomId)?.color) || FALLBACK_COLOR
   const first = task.assigneeIds.map((id) => ctx.persons.get(id)).find(Boolean)
   return first?.color ?? FALLBACK_COLOR
@@ -59,18 +61,30 @@ export interface TaskEvent {
   borderColor: string
   textColor: string
   classNames: string[]
-  extendedProps: { badges: Array<{ kuerzel: string; color: string }>; done: boolean; icon: string }
+  durationEditable?: boolean
+  extendedProps: {
+    badges: Array<{ kuerzel: string; color: string }>
+    done: boolean
+    icon: string
+    taskId: string
+    /** ursprüngliches Datum bei Serien-Terminen */
+    occurrenceDate?: string
+    /** fester Rhythmus: beim Verschieben „Nur diesen Termin / Ganze Serie“ fragen */
+    fixedSeries?: boolean
+    recurring?: boolean
+  }
 }
 
 /** Aufgabe → FullCalendar-Eintrag; Aufgaben ohne Datum (Inbox) und gelöschte → null. */
-export function taskToEvent(task: Task, ctx: EventContext): TaskEvent | null {
+export function taskToEvent(task: TaskInstance, ctx: EventContext): TaskEvent | null {
   if (task.deleted || !task.startAt) return null
   const allDay = task.allDay || task.startAt.length < 16
   const color = eventColor(task, ctx)
   const done = task.status === 'done'
   const room = task.roomId ? ctx.rooms.get(task.roomId) : undefined
+  const fixedSeries = !!task.occurrenceDate && isFixedSeries(task)
   return {
-    id: task.id,
+    id: task.occurrenceDate ? `${task.id}:${task.occurrenceDate}` : task.id,
     title: task.title,
     start: allDay ? task.startAt.slice(0, 10) : task.startAt,
     end: allDay ? undefined : addMinutes(task.startAt, task.durationMin || DEFAULT_TIMED_MIN),
@@ -79,6 +93,8 @@ export function taskToEvent(task: Task, ctx: EventContext): TaskEvent | null {
     borderColor: color,
     textColor: textColorFor(color),
     classNames: done ? ['task-done'] : [],
+    // Die Dauer gilt für die ganze Serie, deshalb Termine nicht einzeln in der Länge ändern
+    durationEditable: fixedSeries ? false : undefined,
     extendedProps: {
       // Im Personen-Modus zeigt die Farbe schon die Person → Badges trotzdem für mehrere Zuständige
       badges: task.assigneeIds
@@ -87,12 +103,37 @@ export function taskToEvent(task: Task, ctx: EventContext): TaskEvent | null {
         .map((p) => ({ kuerzel: p.kuerzel, color: p.color })),
       done,
       icon: room?.icon ?? '',
+      taskId: task.id,
+      occurrenceDate: task.occurrenceDate,
+      fixedSeries,
+      recurring: !!task.recurrenceRule,
     },
   }
 }
 
-export function tasksToEvents(tasks: Task[], ctx: EventContext): TaskEvent[] {
-  return tasks.map((t) => taskToEvent(t, ctx)).filter((e): e is TaskEvent => e !== null)
+export interface VisibleRange {
+  occurrences: Occurrence[]
+  /** JJJJ-MM-TT, inklusive */
+  from: string
+  to: string
+}
+
+/** Einträge für den Kalender; Serien werden für den sichtbaren Zeitraum in Termine aufgelöst. */
+export function tasksToEvents(tasks: TaskInstance[], ctx: EventContext, range?: VisibleRange): TaskEvent[] {
+  const out: TaskEvent[] = []
+  for (const t of tasks) {
+    if (t.deleted) continue
+    if (isSeries(t) && range) {
+      for (const i of expandRange(t, range.occurrences, range.from, range.to)) {
+        const e = taskToEvent(toTaskInstance(t, i), ctx)
+        if (e) out.push(e)
+      }
+      continue
+    }
+    const e = taskToEvent(t, ctx)
+    if (e) out.push(e)
+  }
+  return out
 }
 
 export interface MoveChange {

@@ -4,12 +4,12 @@ import { berlinDateString, formatLongDate } from '@/lib/dates'
 import { loadPref, savePref } from '@/lib/storage'
 import { Fab } from '@/components/ui/Fab'
 import { useAppStore, useMe } from '@/store'
-import { TaskItem, todayBuckets, useAllTasks } from '@/features/tasks'
+import { instanceKey, TaskItem, todayBuckets, useTaskInstances } from '@/features/tasks'
 
 export function TodayPage() {
   const me = useMe()
   const meId = useAppStore((s) => s.device?.personId ?? null)
-  const tasks = useAllTasks()
+  const tasks = useTaskInstances()
   const [mineOnly, setMineState] = useState<boolean>(() => loadPref('todayMineOnly', false))
   const setMineOnly = (v: boolean) => {
     setMineState(v)
@@ -53,7 +53,7 @@ export function TodayPage() {
           <h3 className="mb-2 text-sm font-semibold text-red-600">Überfällig ({b.overdue.length})</h3>
           <ul className="space-y-2">
             {b.overdue.map((t) => (
-              <TaskItem key={t.id} task={t} showDate />
+              <TaskItem key={instanceKey(t)} task={t} showDate />
             ))}
           </ul>
         </section>
@@ -64,7 +64,7 @@ export function TodayPage() {
         {b.today.length > 0 ? (
           <ul className="space-y-2">
             {b.today.map((t) => (
-              <TaskItem key={t.id} task={t} />
+              <TaskItem key={instanceKey(t)} task={t} />
             ))}
           </ul>
         ) : (
@@ -96,7 +96,7 @@ export function TodayPage() {
           <h3 className="mb-2 text-sm font-semibold text-slate-500">Erledigt heute ({b.doneToday.length})</h3>
           <ul className="space-y-2">
             {b.doneToday.map((t) => (
-              <TaskItem key={t.id} task={t} />
+              <TaskItem key={instanceKey(t)} task={t} />
             ))}
           </ul>
         </section>

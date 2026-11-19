@@ -1,4 +1,4 @@
 export { TasksPage, NewTaskPage, EditTaskPage } from './routes'
-export { useAllTasks, useTask, taskActions } from './store'
+export { useAllTasks, useOccurrences, useTask, useTaskInstances, taskActions } from './store'
 export { TaskItem } from './components/TaskItem'
-export { todayBuckets, isInbox } from './utils'
+export { todayBuckets, isInbox, instanceKey, toTaskInstance, type TaskInstance } from './utils'
