@@ -452,11 +452,17 @@ Hinweise zur Umsetzung:
 - Rotation: fester Rhythmus nach Position des Termins in der Serie, `after_completion` nach Anzahl erledigter Termine.
 - Im Kalender lassen sich Serien-Termine nicht in der Länge ändern (Dauer gilt für die Serie).
 
-### Phase 5: Komfort
-- [ ] Suche über alle Aufgaben
-- [ ] Dark Mode
-- [ ] Offline-Nutzung mit Warteschlange (siehe Synchronisation)
-- [ ] Export/Import von `data.json` als zusätzliches Backup
+### Phase 5: Komfort (`v0.5.0`, abgeschlossen am 19.11.2026)
+- [x] Suche über alle Aufgaben
+- [x] Dark Mode
+- [x] Offline-Nutzung mit Warteschlange (siehe Synchronisation)
+- [x] Export/Import von `data.json` als zusätzliches Backup
+
+Hinweise zur Umsetzung:
+- Suche: Feature `search`, Route `/suche?q=…` (Begriff in der URL, damit er nach „Zurück“ bleibt). Lupe im Header auf Heute, Kalender, Aufgaben. Normalisierung: Kleinbuchstaben, ohne Diakritika, ß → ss; alle Wörter müssen vorkommen. Pro Aufgabe ein Treffer (nächster offener Termin, sonst zuletzt erledigter).
+- Dark Mode: `lib/theme.ts` setzt `.dark` am `<html>` (Pref `theme`: system/light/dark); ein Inline-Skript in `index.html` setzt die Klasse schon vor dem Laden. Umsetzung per **Token-Umdeutung** in `styles/index.css`: Unter `.dark` stehen `--color-white` und die `slate`-Skala für dunkle Flächen/helle Schrift, dazu wenige Overrides (`text-white`, `text-brand-700`, `text-red-*`). Neue Komponenten brauchen also meist kein `dark:`. Ausnahmen (Toast, Banner) nutzen `dark:` direkt; Overlays `bg-black/…` statt `bg-slate-900/…`. Kalenderfarben in `calendar.css`.
+- Offline: Die Warteschlange ist der `dirty`-Cache des SyncEngine. Anzeige „Offline · wartet“, wenn offline und dirty. Der Service Worker cacht alle JS-Dateien vor, auch den Kalender-Chunk.
+- Export/Import: `lib/backup.ts`. „Zusammenführen“ = `mergeData`, „Wiederherstellen“ = Datensätze der Datei mit neuem `updatedAt` übernehmen, alles andere als Tombstone löschen. `devices` bleiben bei beidem unverändert. Zu neue `schemaVersion` wird abgelehnt, ältere migriert.
 
 ### Phase 6: Push-Benachrichtigungen
 - [ ] VAPID-Setup und eigener Service Worker (`src/sw.ts`)
