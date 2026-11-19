@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { formatDateTime } from '@/lib/dates'
 import { alive } from '@/lib/records'
 import { maskToken } from '@/lib/storage'
@@ -51,6 +52,22 @@ export function SettingsPage() {
         <Button variant="secondary" block onClick={() => void syncNow()}>
           Jetzt synchronisieren
         </Button>
+      </Card>
+
+      <Card title="Verwalten">
+        <ul className="-my-1 divide-y divide-slate-100">
+          {[
+            { to: '/einstellungen/raeume', label: '🏠 Räume', count: data ? alive(data.rooms).length : 0 },
+            { to: '/einstellungen/personen', label: '👥 Personen', count: persons.length },
+          ].map((l) => (
+            <li key={l.to}>
+              <Link to={l.to} className="flex min-h-12 items-center justify-between py-1">
+                <span>{l.label}</span>
+                <span className="text-sm text-slate-500">{l.count} ›</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </Card>
 
       <Card title="Dieses Gerät">
