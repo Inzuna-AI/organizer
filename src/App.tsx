@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router'
+import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { Header } from '@/components/layout/Header'
 import { useGoBack } from '@/components/layout/useGoBack'
@@ -13,6 +13,7 @@ const CalendarPage = lazy(() => import('@/features/calendar').then((m) => ({ def
 import { ShoppingPage } from '@/features/shopping'
 import { RoomsPage } from '@/features/rooms'
 import { PersonsPage } from '@/features/persons'
+import { SearchPage } from '@/features/search'
 
 const TITLES: Record<string, string> = {
   '/': 'Heute',
@@ -20,6 +21,7 @@ const TITLES: Record<string, string> = {
   '/aufgaben': 'Aufgaben',
   '/aufgaben/neu': 'Neue Aufgabe',
   '/einkauf': 'Einkauf',
+  '/suche': 'Suche',
   '/einstellungen': 'Einstellungen',
   '/einstellungen/raeume': 'Räume',
   '/einstellungen/personen': 'Personen',
@@ -27,6 +29,7 @@ const TITLES: Record<string, string> = {
 
 /** Übergeordnete Seite einer Unterseite, z. B. /aufgaben/123 → /aufgaben */
 function parentOf(pathname: string): string | null {
+  if (pathname === '/suche') return '/'
   const parts = pathname.split('/').filter(Boolean)
   return parts.length > 1 ? `/${parts.slice(0, -1).join('/')}` : null
 }
@@ -37,11 +40,20 @@ function Shell() {
   const { pathname } = useLocation()
   const parent = parentOf(pathname)
   const goBack = useGoBack(parent ?? '/')
+  const navigate = useNavigate()
   const title = TITLES[pathname] ?? (pathname.startsWith('/aufgaben/') ? 'Aufgabe' : 'Organizer')
+  // Lupe auf den Hauptseiten, die Aufgaben zeigen
+  const searchable = pathname === '/' || pathname === '/aufgaben' || pathname === '/kalender'
 
   return (
     <div className="flex min-h-full flex-col">
-      <Header title={title} sync={sync} onRefresh={() => void syncNow()} onBack={parent ? goBack : undefined} />
+      <Header
+        title={title}
+        sync={sync}
+        onRefresh={() => void syncNow()}
+        onBack={parent ? goBack : undefined}
+        onSearch={searchable ? () => navigate('/suche') : undefined}
+      />
       {sync.status === 'readonly' && sync.error && (
         <div role="alert" className="bg-amber-100 px-4 py-2 text-sm text-amber-900">
           {sync.error}
@@ -62,6 +74,7 @@ function Shell() {
           <Route path="/aufgaben/neu" element={<NewTaskPage />} />
           <Route path="/aufgaben/:id" element={<EditTaskPage />} />
           <Route path="/einkauf" element={<ShoppingPage />} />
+          <Route path="/suche" element={<SearchPage />} />
           <Route path="/einstellungen" element={<SettingsPage />} />
           <Route path="/einstellungen/raeume" element={<RoomsPage />} />
           <Route path="/einstellungen/personen" element={<PersonsPage />} />

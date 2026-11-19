@@ -1,5 +1,5 @@
 import type { SyncState } from '@/lib/sync'
-import { RefreshIcon } from './icons'
+import { RefreshIcon, SearchIcon } from './icons'
 import { SyncIndicator } from './SyncIndicator'
 
 interface Props {
@@ -8,9 +8,11 @@ interface Props {
   onRefresh: () => void
   /** Zeigt einen Zurück-Pfeil (Unterseiten) */
   onBack?: () => void
+  /** Zeigt eine Lupe, die zur Suche führt */
+  onSearch?: () => void
 }
 
-export function Header({ title, sync, onRefresh, onBack }: Props) {
+export function Header({ title, sync, onRefresh, onBack, onSearch }: Props) {
   const busy = sync.status === 'syncing' || sync.status === 'saving'
   return (
     <header className="pt-safe sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -29,6 +31,16 @@ export function Header({ title, sync, onRefresh, onBack }: Props) {
         )}
         <h1 className="flex-1 truncate text-lg font-semibold">{title}</h1>
         <SyncIndicator state={sync} />
+        {onSearch && (
+          <button
+            type="button"
+            onClick={onSearch}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
+            aria-label="Suchen"
+          >
+            <SearchIcon />
+          </button>
+        )}
         <button
           type="button"
           onClick={onRefresh}

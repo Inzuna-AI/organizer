@@ -54,6 +54,13 @@ export const SettingsIcon = (p: SVGProps<SVGSVGElement>) => (
   </Icon>
 )
 
+export const SearchIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </Icon>
+)
+
 export const RefreshIcon = (p: SVGProps<SVGSVGElement>) => (
   <Icon {...p}>
     <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8" />

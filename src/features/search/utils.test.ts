@@ -1,0 +1,78 @@
+import { describe, expect, it } from 'vitest'
+import type { Task } from '@/types/data'
+import { haystack, matches, normalize, searchTasks } from './utils'
+
+function task(o: Partial<Task>): Task {
+  return {
+    id: 't',
+    updatedAt: '2026-11-01T00:00:00.000Z',
+    deleted: false,
+    createdBy: null,
+    updatedBy: null,
+    title: 'Aufgabe',
+    description: '',
+    roomId: null,
+    priority: 'medium',
+    startAt: null,
+    allDay: false,
+    durationMin: null,
+    status: 'open',
+    completedAt: null,
+    assigneeIds: [],
+    recurrenceRule: null,
+    recurrenceMode: 'fixed',
+    rotation: false,
+    checklist: [],
+    ...o,
+  }
+}
+
+const noRoom = () => undefined
+
+describe('normalize/matches', () => {
+  it('ignoriert Groß-/Kleinschreibung, Umlaute und ß', () => {
+    expect(normalize('Küche Straße')).toBe('kuche strasse')
+    expect(matches(normalize('Küche putzen'), 'KUCHE')).toBe(true)
+    expect(matches(normalize('Küche putzen'), 'küche')).toBe(true)
+  })
+
+  it('alle Wörter müssen vorkommen', () => {
+    expect(matches('bad putzen', 'putzen bad')).toBe(true)
+    expect(matches('bad putzen', 'bad saugen')).toBe(false)
+    expect(matches('bad putzen', '   ')).toBe(false)
+  })
+
+  it('durchsucht Beschreibung, Checkliste und Raum', () => {
+    const t = task({ description: 'mit Essig', checklist: [{ id: 'c', title: 'Spiegel', done: false }] })
+    const text = haystack(t, 'Badezimmer')
+    expect(matches(text, 'essig')).toBe(true)
+    expect(matches(text, 'spiegel')).toBe(true)
+    expect(matches(text, 'badezimmer')).toBe(true)
+  })
+})
+
+describe('searchTasks', () => {
+  it('trennt offen und erledigt, ohne gelöschte', () => {
+    const tasks = [
+      task({ id: 'a', title: 'Bad putzen', startAt: '2026-11-20' }),
+      task({ id: 'b', title: 'Bad streichen', status: 'done', completedAt: '2026-11-01T10:00:00Z' }),
+      task({ id: 'c', title: 'Bad alt', deleted: true }),
+      task({ id: 'd', title: 'Küche' }),
+    ]
+    const r = searchTasks(tasks, tasks.filter((t) => !t.deleted), 'bad', noRoom)
+    expect(r.open.map((t) => t.id)).toEqual(['a'])
+    expect(r.done.map((t) => t.id)).toEqual(['b'])
+  })
+
+  it('Serie erscheint einmal mit dem nächsten offenen Termin', () => {
+    const s = task({ id: 's', title: 'Blumen', startAt: '2026-11-10', recurrenceRule: 'FREQ=DAILY' })
+    const instances = [
+      { ...s, startAt: '2026-11-19', occurrenceDate: '2026-11-19' },
+      { ...s, startAt: '2026-11-18', occurrenceDate: '2026-11-18' },
+      { ...s, startAt: '2026-11-17', status: 'done' as const, completedAt: 'x', occurrenceDate: '2026-11-17' },
+    ]
+    const r = searchTasks([s], instances, 'blumen', noRoom)
+    expect(r.open.map((t) => t.occurrenceDate)).toEqual(['2026-11-18'])
+    expect(r.done).toEqual([])
+  })
+})
