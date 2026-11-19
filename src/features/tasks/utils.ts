@@ -12,7 +12,7 @@ import {
   overdueInstance,
   type Instance,
 } from '@/lib/recurrence'
-import { isPeriodTask, periodInstances, periodLabel, periodRange, periodStartOf } from '@/lib/periods'
+import { isPeriodTask, periodInstances, periodLabel, periodRange, periodStartOf, type PeriodUnit } from '@/lib/periods'
 
 export const PRIORITY_LABEL: Record<Priority, string> = {
   low: 'Niedrig',
@@ -293,7 +293,7 @@ export function groupByPeriod(tasks: TaskInstance[], today: string): TaskGroup[]
   const groups: TaskGroup[] = []
   const overdue = tasks.filter((t) => isOverdue(t, today))
   if (overdue.length) groups.push({ key: 'overdue', label: 'Überfällig', overdue: true, tasks: overdue })
-  const byRange = new Map<string, { range: { from: string; to: string }; unit: 'week' | 'month'; tasks: TaskInstance[] }>()
+  const byRange = new Map<string, { range: { from: string; to: string }; unit: PeriodUnit; tasks: TaskInstance[] }>()
   for (const t of tasks) {
     const range = taskPeriod(t)
     if (!range || isOverdue(t, today)) continue
@@ -323,13 +323,15 @@ export function periodStarted(t: Task, today: string): boolean {
 }
 
 /** Für das Formular: Auswahl der nächsten Wochen bzw. Monate */
-export function periodChoices(unit: 'week' | 'month', today: string, count: number): Array<{ from: string; label: string }> {
+export function periodChoices(unit: PeriodUnit, today: string, count: number): Array<{ from: string; label: string }> {
   const out: Array<{ from: string; label: string }> = []
   let from = periodStartOf(today, unit)
   for (let i = 0; i < count; i++) {
     const range = periodRange({ period: unit, recurrenceRule: null, startAt: from }, from)
     const name = periodLabel(range, unit, today)
-    const dates = unit === 'week' && (name === 'Diese Woche' || name === 'Nächste Woche')
+    const withDates =
+      (unit === 'week' && (name === 'Diese Woche' || name === 'Nächste Woche')) || unit === 'quarter' || unit === 'half'
+    const dates = withDates
       ? ` (${range.from.slice(8, 10)}.${range.from.slice(5, 7)}.–${range.to.slice(8, 10)}.${range.to.slice(5, 7)}.)`
       : ''
     out.push({ from, label: `${name}${dates}` })

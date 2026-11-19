@@ -1,8 +1,10 @@
 // Aufgaben mit Zeitraum statt festem Tag (Feld Task.period, seit v1.4.0):
-// „irgendwann diese Woche“ bzw. „irgendwann im Dezember“, auch wiederkehrend („einmal pro Woche“).
+// „irgendwann diese Woche“, „im Dezember“, „im 1. Quartal“, „im 2. Halbjahr“, „2027“,
+// auch wiederkehrend („einmal pro Woche“, „jedes Quartal“).
 //
 // Gespeichert wird wie bei normalen Aufgaben: startAt ist der erste Tag des Zeitraums (Montag bzw.
-// Monatserster, ganztägig), eine Serie hat eine RRULE (FREQ=WEEKLY;BYDAY=MO bzw. FREQ=MONTHLY).
+// Monatserster, bei Quartal/Halbjahr/Jahr am Kalender ausgerichtet, ganztägig). Eine Serie hat eine
+// RRULE: FREQ=WEEKLY;BYDAY=MO bzw. FREQ=MONTHLY mit INTERVAL in Monaten (Quartal = 3, Jahr = 12).
 // Ein Zeitraum ist so lang wie der Abstand der Serie („alle 2 Wochen“ = 2 Wochen Zeit).
 // Erledigte und ausgelassene Zeiträume stehen wie gewohnt in occurrences.
 //
@@ -12,7 +14,18 @@ import type { Occurrence, Task } from '@/types/data'
 import { addDays, formatDay } from './dates'
 import { datesBetween, doneInstances, instanceAt, isSeries, parseRule, weekdayIndex, type Instance } from './recurrence'
 
-export type PeriodUnit = 'week' | 'month'
+/** Länge der Zeiträume in Monaten (Woche: siehe unten) */
+const UNIT_MONTHS = { month: 1, quarter: 3, half: 6, year: 12 } as const
+
+export type PeriodUnit = 'week' | keyof typeof UNIT_MONTHS
+
+export const PERIOD_UNITS: ReadonlyArray<{ unit: PeriodUnit; label: string }> = [
+  { unit: 'week', label: 'Woche' },
+  { unit: 'month', label: 'Monat' },
+  { unit: 'quarter', label: 'Quartal' },
+  { unit: 'half', label: 'Halbjahr' },
+  { unit: 'year', label: 'Jahr' },
+]
 
 type PeriodTask = Pick<
   Task,
@@ -31,10 +44,11 @@ export function isPeriodTask(t: Pick<Task, 'period' | 'startAt'>): boolean {
   return !!t.period && !!t.startAt
 }
 
-/** Erster Tag des Zeitraums, in dem das Datum liegt (Montag bzw. Monatserster) */
+/** Erster Tag des Zeitraums, in dem das Datum liegt (Montag, Monats-, Quartals-, Halbjahres-, Jahresanfang) */
 export function periodStartOf(date: string, unit: PeriodUnit): string {
-  if (unit === 'month') return `${date.slice(0, 7)}-01`
-  return addDays(date.slice(0, 10), -weekdayIndex(date))
+  if (unit === 'week') return addDays(date.slice(0, 10), -weekdayIndex(date))
+  const m = Number(date.slice(5, 7)) - 1
+  return `${date.slice(0, 4)}-${pad(m - (m % UNIT_MONTHS[unit]) + 1)}-01`
 }
 
 /** Monatserster + n Monate */
@@ -45,13 +59,15 @@ function addMonthStarts(start: string, n: number): string {
 
 /** Nächster Zeitraum gleicher Länge */
 export function nextPeriodStart(start: string, unit: PeriodUnit, n = 1): string {
-  return unit === 'week' ? addDays(start, 7 * n) : addMonthStarts(start, n)
+  return unit === 'week' ? addDays(start, 7 * n) : addMonthStarts(start, n * UNIT_MONTHS[unit])
 }
 
-/** Abstand der Serie (alle n Wochen/Monate), einmalig = 1 */
-export function periodInterval(t: Pick<Task, 'recurrenceRule' | 'startAt'>): number {
+/** Abstand der Serie in Zeiträumen (alle n Wochen/Monate/Quartale …), einmalig = 1 */
+export function periodInterval(t: Pick<Task, 'recurrenceRule' | 'startAt' | 'period'>): number {
   if (!t.recurrenceRule || !t.startAt) return 1
-  return parseRule(t.recurrenceRule, t.startAt.slice(0, 10)).interval
+  const n = parseRule(t.recurrenceRule, t.startAt.slice(0, 10)).interval
+  const unit = t.period ?? 'week'
+  return unit === 'week' ? n : Math.max(1, Math.round(n / UNIT_MONTHS[unit]))
 }
 
 /** Zeitraum, der am Datum start beginnt (inklusive letzter Tag) */
@@ -67,17 +83,25 @@ export function periodRange(
 export function periodRule(unit: PeriodUnit, interval: number): string {
   const n = Math.max(1, Math.floor(interval) || 1)
   const parts = [unit === 'week' ? 'FREQ=WEEKLY' : 'FREQ=MONTHLY']
-  if (n > 1) parts.push(`INTERVAL=${n}`)
+  const every = unit === 'week' ? n : n * UNIT_MONTHS[unit]
+  if (every > 1) parts.push(`INTERVAL=${every}`)
   if (unit === 'week') parts.push('BYDAY=MO')
   return parts.join(';')
 }
 
-/** „Jede Woche“, „Alle 2 Monate“, „Einmalig“ */
+const REPEAT_WORDS: Record<PeriodUnit, [string, string]> = {
+  week: ['Jede Woche', 'Wochen'],
+  month: ['Jeden Monat', 'Monate'],
+  quarter: ['Jedes Quartal', 'Quartale'],
+  half: ['Jedes Halbjahr', 'Halbjahre'],
+  year: ['Jedes Jahr', 'Jahre'],
+}
+
+/** „Jede Woche“, „Alle 2 Monate“, „Jedes Quartal“, „Einmalig“ */
 export function describePeriodRepeat(unit: PeriodUnit, interval: number | null): string {
   if (!interval) return 'Einmalig'
-  if (unit === 'week') return interval === 1 ? 'Jede Woche' : `Alle ${interval} Wochen`
-  if (interval === 12) return 'Jedes Jahr'
-  return interval === 1 ? 'Jeden Monat' : `Alle ${interval} Monate`
+  const [one, many] = REPEAT_WORDS[unit]
+  return interval === 1 ? one : `Alle ${interval} ${many}`
 }
 
 /** „16.11.“ bzw. mit Jahr, wenn es nicht das Jahr von today ist */
@@ -92,11 +116,19 @@ function monthName(date: string, today: string): string {
 }
 
 /**
- * Name eines Zeitraums: „Diese Woche“, „Nächste Woche“, „30.11.–06.12.“, „Dezember“, „Dezember–Januar 2027“.
+ * Name eines Zeitraums: „Diese Woche“, „Nächste Woche“, „30.11.–06.12.“, „Dezember“, „Dezember–Januar 2027“,
+ * „4. Quartal“, „1. Halbjahr 2027“, „2027“.
  */
 export function periodLabel(range: { from: string; to: string }, unit: PeriodUnit, today: string): string {
   const { from, to } = range
-  if (unit === 'month') {
+  if (unit !== 'week') {
+    const year = from.slice(0, 4)
+    const otherYear = year !== today.slice(0, 4) ? ` ${year}` : ''
+    const single = to === addDays(nextPeriodStart(from, unit), -1)
+    const index = Math.floor((Number(from.slice(5, 7)) - 1) / UNIT_MONTHS[unit]) + 1
+    if (single && unit === 'quarter') return `${index}. Quartal${otherYear}`
+    if (single && unit === 'half') return `${index}. Halbjahr${otherYear}`
+    if (single && unit === 'year') return year
     const last = `${to.slice(0, 7)}-01`
     if (last === from) return monthName(from, today)
     return `${monthName(from, today)}–${monthName(last, today)}`
@@ -137,7 +169,8 @@ export function periodInstances(t: PeriodTask, occurrences: Occurrence[], today:
 export function currentPeriod(t: PeriodTask, occurrences: Occurrence[], today: string): Instance | null {
   if (!isPeriodTask(t) || !isSeries(t)) return null
   const n = periodInterval(t)
-  const reach = t.period === 'month' ? 31 * n : 7 * n
+  const unit = t.period ?? 'week'
+  const reach = unit === 'week' ? 7 * n : 31 * UNIT_MONTHS[unit] * n
   const start = datesBetween(t, addDays(today, -reach), today).at(-1)
   if (!start || periodRange(t, start).to < today) return null
   return instanceAt(t, occurrences, start)

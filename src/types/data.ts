@@ -58,10 +58,10 @@ export interface Task extends BaseRecord {
    */
   reminderTimes?: string[]
   /**
-   * Zeitraum statt festem Tag (seit v1.4.0, optional): „irgendwann in dieser Woche/diesem Monat“.
-   * startAt ist dann der erste Tag des Zeitraums (Montag bzw. Monatserster, ganztägig), siehe lib/periods.ts.
+   * Zeitraum statt festem Tag (seit v1.4.0, optional): „irgendwann in dieser Woche/diesem Monat/Quartal/Halbjahr/Jahr“.
+   * startAt ist dann der erste Tag des Zeitraums (Montag bzw. Monats-/Quartals-/Halbjahres-/Jahresanfang, ganztägig), siehe lib/periods.ts.
    */
-  period?: 'week' | 'month' | null
+  period?: 'week' | 'month' | 'quarter' | 'half' | 'year' | null
 }
 
 export interface Occurrence extends BaseRecord {

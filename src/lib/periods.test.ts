@@ -66,12 +66,41 @@ describe('Zeiträume', () => {
     expect(periodRange(task({ period: 'month', recurrenceRule: 'FREQ=MONTHLY;INTERVAL=3' }), '2026-11-01').to).toBe('2027-01-31')
   })
 
+  it('Quartal, Halbjahr, Jahr am Kalender ausgerichtet', () => {
+    expect(periodStartOf(TODAY, 'quarter')).toBe('2026-10-01')
+    expect(periodStartOf('2026-03-31', 'quarter')).toBe('2026-01-01')
+    expect(periodStartOf(TODAY, 'half')).toBe('2026-07-01')
+    expect(periodStartOf('2026-06-30', 'half')).toBe('2026-01-01')
+    expect(periodStartOf(TODAY, 'year')).toBe('2026-01-01')
+    expect(periodRange(task({ period: 'quarter' }), '2026-10-01')).toEqual({ from: '2026-10-01', to: '2026-12-31' })
+    expect(periodRange(task({ period: 'half' }), '2027-01-01').to).toBe('2027-06-30')
+    expect(periodRange(task({ period: 'year' }), '2027-01-01').to).toBe('2027-12-31')
+    // Jedes 2. Quartal: 6 Monate Zeit
+    const q2 = task({ period: 'quarter', startAt: '2026-10-01', recurrenceRule: periodRule('quarter', 2) })
+    expect(periodRange(q2, '2026-10-01').to).toBe('2027-03-31')
+    expect(periodLabel({ from: '2026-10-01', to: '2026-12-31' }, 'quarter', TODAY)).toBe('4. Quartal')
+    expect(periodLabel({ from: '2027-01-01', to: '2027-03-31' }, 'quarter', TODAY)).toBe('1. Quartal 2027')
+    expect(periodLabel({ from: '2027-07-01', to: '2027-12-31' }, 'half', TODAY)).toBe('2. Halbjahr 2027')
+    expect(periodLabel({ from: '2027-01-01', to: '2027-12-31' }, 'year', TODAY)).toBe('2027')
+  })
+
+  it('Serie jedes Quartal: laufendes Quartal, danach das nächste', () => {
+    const t = task({ period: 'quarter', startAt: '2026-04-01', recurrenceRule: periodRule('quarter', 1) })
+    expect(currentPeriod(t, [], TODAY)?.date).toBe('2026-10-01')
+    expect(openPeriod(t, [occ('2026-10-01', 'done')], TODAY)?.date).toBe('2027-01-01')
+    const y = task({ period: 'year', startAt: '2025-01-01', recurrenceRule: periodRule('year', 1) })
+    expect(currentPeriod(y, [], TODAY)?.date).toBe('2026-01-01')
+  })
+
   it('Regel wie buildRule', () => {
     expect(periodRule('week', 1)).toBe(buildRule(defaultSpec('weekly', '2026-11-16'), '2026-11-16'))
     expect(periodRule('week', 2)).toBe('FREQ=WEEKLY;INTERVAL=2;BYDAY=MO')
     expect(periodRule('month', 1)).toBe('FREQ=MONTHLY')
-    expect(periodRule('month', 12)).toBe('FREQ=MONTHLY;INTERVAL=12')
-    expect(describePeriodRepeat('month', 12)).toBe('Jedes Jahr')
+    expect(periodRule('year', 1)).toBe('FREQ=MONTHLY;INTERVAL=12')
+    expect(periodRule('quarter', 2)).toBe('FREQ=MONTHLY;INTERVAL=6')
+    expect(describePeriodRepeat('year', 1)).toBe('Jedes Jahr')
+    expect(describePeriodRepeat('quarter', 1)).toBe('Jedes Quartal')
+    expect(describePeriodRepeat('half', 2)).toBe('Alle 2 Halbjahre')
     expect(describePeriodRepeat('week', null)).toBe('Einmalig')
   })
 

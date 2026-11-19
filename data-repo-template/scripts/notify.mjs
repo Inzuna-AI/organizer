@@ -3696,6 +3696,7 @@ function involves(e, personId) {
 }
 
 // src/lib/periods.ts
+var UNIT_MONTHS = { month: 1, quarter: 3, half: 6, year: 12 };
 var MONTHS = [
   "Januar",
   "Februar",
@@ -3715,19 +3716,22 @@ function isPeriodTask(t) {
   return !!t.period && !!t.startAt;
 }
 function periodStartOf(date, unit) {
-  if (unit === "month") return `${date.slice(0, 7)}-01`;
-  return addDays(date.slice(0, 10), -weekdayIndex(date));
+  if (unit === "week") return addDays(date.slice(0, 10), -weekdayIndex(date));
+  const m = Number(date.slice(5, 7)) - 1;
+  return `${date.slice(0, 4)}-${pad3(m - m % UNIT_MONTHS[unit] + 1)}-01`;
 }
 function addMonthStarts(start, n) {
   const total = Number(start.slice(0, 4)) * 12 + Number(start.slice(5, 7)) - 1 + n;
   return `${Math.floor(total / 12)}-${pad3(total % 12 + 1)}-01`;
 }
 function nextPeriodStart(start, unit, n = 1) {
-  return unit === "week" ? addDays(start, 7 * n) : addMonthStarts(start, n);
+  return unit === "week" ? addDays(start, 7 * n) : addMonthStarts(start, n * UNIT_MONTHS[unit]);
 }
 function periodInterval(t) {
   if (!t.recurrenceRule || !t.startAt) return 1;
-  return parseRule(t.recurrenceRule, t.startAt.slice(0, 10)).interval;
+  const n = parseRule(t.recurrenceRule, t.startAt.slice(0, 10)).interval;
+  const unit = t.period ?? "week";
+  return unit === "week" ? n : Math.max(1, Math.round(n / UNIT_MONTHS[unit]));
 }
 function periodRange(t, start) {
   const unit = t.period ?? "week";
@@ -3743,7 +3747,14 @@ function monthName(date, today) {
 }
 function periodLabel(range, unit, today) {
   const { from, to } = range;
-  if (unit === "month") {
+  if (unit !== "week") {
+    const year = from.slice(0, 4);
+    const otherYear = year !== today.slice(0, 4) ? ` ${year}` : "";
+    const single2 = to === addDays(nextPeriodStart(from, unit), -1);
+    const index = Math.floor((Number(from.slice(5, 7)) - 1) / UNIT_MONTHS[unit]) + 1;
+    if (single2 && unit === "quarter") return `${index}. Quartal${otherYear}`;
+    if (single2 && unit === "half") return `${index}. Halbjahr${otherYear}`;
+    if (single2 && unit === "year") return year;
     const last = `${to.slice(0, 7)}-01`;
     if (last === from) return monthName(from, today);
     return `${monthName(from, today)}\u2013${monthName(last, today)}`;
@@ -3758,7 +3769,8 @@ function periodLabel(range, unit, today) {
 function currentPeriod(t, occurrences, today) {
   if (!isPeriodTask(t) || !isSeries(t)) return null;
   const n = periodInterval(t);
-  const reach = t.period === "month" ? 31 * n : 7 * n;
+  const unit = t.period ?? "week";
+  const reach = unit === "week" ? 7 * n : 31 * UNIT_MONTHS[unit] * n;
   const start = datesBetween(t, addDays(today, -reach), today).at(-1);
   if (!start || periodRange(t, start).to < today) return null;
   return instanceAt(t, occurrences, start);

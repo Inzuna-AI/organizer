@@ -1,12 +1,19 @@
 import { SelectField } from '@/components/ui/Field'
-import { describePeriodRepeat, periodLabel, periodRange, periodStartOf, type PeriodUnit } from '@/lib/periods'
+import {
+  describePeriodRepeat,
+  PERIOD_UNITS,
+  periodLabel,
+  periodRange,
+  periodStartOf,
+  type PeriodUnit,
+} from '@/lib/periods'
 import { periodChoices } from '../utils'
 
 export interface PeriodValue {
   unit: PeriodUnit
   /** erster Tag des (ersten) Zeitraums */
   from: string
-  /** alle n Wochen/Monate; null = einmalig */
+  /** alle n Wochen/Monate/Quartale …; null = einmalig */
   repeat: number | null
   rotation: boolean
 }
@@ -20,7 +27,21 @@ interface Props {
 
 const REPEATS: Record<PeriodUnit, number[]> = {
   week: [1, 2, 3, 4],
-  month: [1, 2, 3, 6, 12],
+  month: [1, 2],
+  quarter: [1, 2],
+  half: [1],
+  year: [1, 2],
+}
+
+/** So viele Zeiträume stehen zur Auswahl */
+const CHOICES: Record<PeriodUnit, number> = { week: 8, month: 12, quarter: 6, half: 4, year: 3 }
+
+const WHICH: Record<PeriodUnit, string> = {
+  week: 'Welche Woche',
+  month: 'Welcher Monat',
+  quarter: 'Welches Quartal',
+  half: 'Welches Halbjahr',
+  year: 'Welches Jahr',
 }
 
 const chip = (active: boolean) =>
@@ -29,7 +50,7 @@ const chip = (active: boolean) =>
 /** Zeitraum einer Aufgabe: Woche oder Monat, welcher, ob wiederkehrend */
 export function PeriodField({ value, onChange, today, canRotate }: Props) {
   const { unit, from, repeat, rotation } = value
-  const choices = periodChoices(unit, today, unit === 'week' ? 8 : 12)
+  const choices = periodChoices(unit, today, CHOICES[unit])
   // Gespeicherter Beginn, der nicht (mehr) in der Auswahl steht, z. B. Serienstart in der Vergangenheit
   if (!choices.some((c) => c.from === from)) {
     const range = periodRange({ period: unit, recurrenceRule: null, startAt: from }, from)
@@ -44,16 +65,21 @@ export function PeriodField({ value, onChange, today, canRotate }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Zeitraum">
-        <button type="button" aria-pressed={unit === 'week'} onClick={() => setUnit('week')} className={chip(unit === 'week')}>
-          Woche
-        </button>
-        <button type="button" aria-pressed={unit === 'month'} onClick={() => setUnit('month')} className={chip(unit === 'month')}>
-          Monat
-        </button>
+      <div className="grid grid-cols-5 gap-1" role="group" aria-label="Zeitraum">
+        {PERIOD_UNITS.map((u) => (
+          <button
+            key={u.unit}
+            type="button"
+            aria-pressed={unit === u.unit}
+            onClick={() => setUnit(u.unit)}
+            className={`${chip(unit === u.unit)} px-0.5`}
+          >
+            {u.label}
+          </button>
+        ))}
       </div>
       <SelectField
-        label={repeat ? 'Erster Zeitraum' : unit === 'week' ? 'Welche Woche' : 'Welcher Monat'}
+        label={repeat ? 'Erster Zeitraum' : WHICH[unit]}
         value={from}
         onChange={(e) => onChange({ ...value, from: e.target.value })}
       >

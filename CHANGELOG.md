@@ -6,9 +6,9 @@ Ein Eintrag ist die Beschreibung des GitHub Releases.
 ## [1.4.0] – 2026-11-19
 
 ### Neu
-- Aufgaben mit Zeitraum statt festem Tag: „irgendwann in dieser Woche“ bzw. „in diesem Monat“. Im Formular unter „Fester Tag / Zeitraum“ Woche oder Monat wählen
-- Auch wiederkehrend: jede Woche, alle 2–4 Wochen, jeden Monat, alle 2, 3 oder 6 Monate, jedes Jahr. Der Zeitraum ist so lang wie der Abstand („alle 2 Wochen“ = 2 Wochen Zeit). Rotation zwischen Personen geht auch hier
-- Eigener Bereich „Zeitraum“ unter Aufgaben, getrennt von „Geplant“, gruppiert nach „Diese Woche“, „November“ usw.
+- Aufgaben mit Zeitraum statt festem Tag: „irgendwann in dieser Woche“, „im Dezember“, „im 1. Quartal“, „im 2. Halbjahr“ oder „2027“. Im Formular unter „Fester Tag / Zeitraum“ Woche, Monat, Quartal, Halbjahr oder Jahr wählen. Quartale, Halbjahre und Jahre richten sich nach dem Kalender (z. B. 1. Quartal = Januar–März)
+- Auch wiederkehrend: jede Woche, alle 2–4 Wochen, jeden Monat, alle 2 Monate, jedes (2.) Quartal, jedes Halbjahr, jedes (2.) Jahr. Der Zeitraum ist so lang wie der Abstand („alle 2 Wochen“ = 2 Wochen Zeit). Rotation zwischen Personen geht auch hier
+- Eigener Bereich „Zeitraum“ unter Aufgaben, getrennt von „Geplant“, gruppiert nach „Diese Woche“, „November“, „4. Quartal“ usw.
 - Heute-Ansicht: Abschnitt „Im Zeitraum“ mit allen laufenden Zeitraum-Aufgaben
 - Nach dem Erledigen erscheint gleich der nächste Zeitraum. Bei Serien verfällt ein nicht erledigter Zeitraum, sobald der nächste beginnt; einmalige werden nach Ablauf als überfällig angezeigt
 - „Diesmal auslassen“ und „Diesmal zuständig“ für einzelne Zeiträume
