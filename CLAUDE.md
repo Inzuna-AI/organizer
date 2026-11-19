@@ -169,6 +169,7 @@ Jeder Datensatz hat `id` (UUID), `updatedAt` (ISO-Zeitstempel), `deleted` (bool)
 - `events` (Termine, ab `schemaVersion` 2): `startAt` mit Uhrzeit oder ganztägig `JJJJ-MM-TT`. `endAt` mit Uhrzeit (auch an einem späteren Tag) bzw. bei ganztägigen der letzte Tag inklusive; `null` = 60 Minuten bzw. ein Tag. `personIds` leer oder alle Personen = „Familie“. Ausnahmen einer Serie stehen direkt im Termin (`exceptions`, Schlüssel = ursprüngliches Datum), nicht in `occurrences`.
 - `devices[].notify.newEvent`: Nachricht bei neuem oder geändertem Termin, bei dem die Person dabei ist.
 - `tasks[].reminderMin` / `events[].reminderMin` (optional, seit v1.1.0 ohne Schema-Wechsel): fehlt = Standard des Geräts, `null` = keine, `0` = zum Zeitpunkt, sonst Minuten vorher (5/15/30/60/1440). Ganztägig: unter 1440 = am Morgen des Tages, ab 1440 = Tage vorher am Morgen.
+- `tasks[].reminderTimes` / `events[].reminderTimes` (optional, seit v1.2.0): zusätzliche feste Erinnerungen als `"<Tage relativ>@HH:MM"`, z. B. `"-7@09:00"`, `"-1@15:00"`, `"0@21:00"`. Fehlt = keine.
 - `devices[].notify.dueReminderMinutesBefore`: Standard für Einträge ohne eigene Erinnerung: 0 / 5 / 15 / 30 / 60 / 1440, `-1` = am Morgen des Tages (7 Uhr). `quietHours` kann `null` sein (keine Ruhezeiten).
 - `devices[].testRequestedAt` (optional): Ändert sich der Wert, schickt `notify-on-change` eine Testbenachrichtigung an dieses Gerät.
 - Bei einer Änderung von `schemaVersion` wird beim Laden automatisch migriert (`src/lib/migrations.ts`).
@@ -533,6 +534,15 @@ Hinweise zur Umsetzung:
 - `dueReminder: false` („Aus“) schaltet auf dem Gerät auch eigene Erinnerungen der Einträge ab.
 - `reminderWindow` in `notify/reminders.ts`: mit Uhrzeit von 15 Min. vor dem Erinnerungszeitpunkt bis `max(Beginn, Erinnerungszeitpunkt + 30 Min.)`; ganztägig bzw. Morgen-Modus ab 7 Uhr (am Tag bzw. N Tage vorher) bis 12 Uhr des Tages (Morgen-Modus höchstens bis Beginn).
 - Vor 6 Uhr Berliner Zeit verschickt `reminderRun` nichts (auch bei manuellem Start) und merkt nichts. Der Cron `7,37 4-22 * * *` (UTC) deckt Sommer- und Winterzeit ab.
+
+### Erinnerungen zu festen Uhrzeiten (`v1.2.0`, abgeschlossen am 19.11.2026)
+- [x] Mehrere feste Zeitpunkte ankreuzbar: 1 Woche vorher 9 Uhr, Vortag 8/15 Uhr, am Tag 9/12/15/18/21 Uhr (Aufgaben und Termine)
+- [x] Zusätzlich zur Erinnerung vor Beginn
+
+Hinweise zur Umsetzung:
+- Auswahl `FIXED_REMINDERS`, `parseFixedReminder`, `normalizeFixedReminders` (sortiert, leer = Feld entfällt) in `lib/reminders.ts`; Ankreuz-Chips in `ReminderField`.
+- `fixedReminderWindow`: von 15 Min. vor bis 30 Min. nach der Uhrzeit, auch nach Beginn (bei Aufgaben nur offene). Schlüssel `<Erinnerungs-Schlüssel>|<code>`. Kandidaten werden 7 Tage voraus betrachtet (`MAX_DAYS_BEFORE`).
+- Mehrere gleichzeitig fällige Erinnerungen eines Eintrags = eine Zeile, alle Schlüssel werden gemerkt.
 
 ### Später / optional
 - Sync mit Google- oder Apple-Kalender (z. B. als ICS-Export)
