@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { RecurrenceMode } from '@/types/data'
 import {
   buildRule,
@@ -51,6 +52,8 @@ const chip = (active: boolean) =>
 export function RecurrenceEditor({ value, onChange, date, canRotate }: Props) {
   const { spec, mode, rotation } = value
   const afterCompletion = mode === 'after_completion'
+  /** Eingabe im Intervall-Feld, solange es fokussiert ist (darf kurz leer sein) */
+  const [intervalDraft, setIntervalDraft] = useState<string | null>(null)
 
   function setFreq(freq: Freq | '') {
     if (!freq) return onChange({ ...value, spec: null })
@@ -122,13 +125,22 @@ export function RecurrenceEditor({ value, onChange, date, canRotate }: Props) {
             <div className="flex items-center gap-2 text-sm">
               <span>{afterCompletion ? '' : 'Alle'}</span>
               <input
-                type="number"
+                type="text"
                 inputMode="numeric"
-                min={1}
-                max={99}
+                pattern="[0-9]*"
+                enterKeyHint="done"
                 aria-label="Intervall"
-                value={spec.interval}
-                onChange={(e) => setSpec({ interval: Math.max(1, Math.min(99, Number(e.target.value) || 1)) })}
+                value={intervalDraft ?? String(spec.interval)}
+                // Beim Antippen markieren, damit man die Zahl direkt überschreibt
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  // Leeres Feld beim Tippen erlauben; gespeichert wird nur eine gültige Zahl
+                  const text = e.target.value.replace(/\D/g, '').slice(0, 2)
+                  setIntervalDraft(text)
+                  const n = Number(text)
+                  if (n >= 1) setSpec({ interval: n })
+                }}
+                onBlur={() => setIntervalDraft(null)}
                 className="min-h-11 w-16 rounded-xl border border-slate-300 bg-white px-2 text-center text-base"
               />
               <span>
