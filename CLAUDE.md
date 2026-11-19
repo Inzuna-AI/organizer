@@ -469,13 +469,25 @@ Hinweise zur Umsetzung:
 - Offline: Die Warteschlange ist der `dirty`-Cache des SyncEngine. Anzeige „Offline · wartet“, wenn offline und dirty. Der Service Worker cacht alle JS-Dateien vor, auch den Kalender-Chunk.
 - Export/Import: `lib/backup.ts`. „Zusammenführen“ = `mergeData`, „Wiederherstellen“ = Datensätze der Datei mit neuem `updatedAt` übernehmen, alles andere als Tombstone löschen. `devices` bleiben bei beidem unverändert. Zu neue `schemaVersion` wird abgelehnt, ältere migriert.
 
-### Phase 6: Push-Benachrichtigungen
-- [ ] VAPID-Setup und eigener Service Worker (`src/sw.ts`)
-- [ ] „Benachrichtigungen aktivieren“ inklusive iOS-Homescreen-Hinweis
-- [ ] Einstellungsseite pro Gerät (siehe Push-Benachrichtigungen)
-- [ ] `data-repo-template/` mit `notify-on-change.yml`, `reminders.yml` und `notify.mjs`
-- [ ] Testbenachrichtigung
-- [ ] Abgelaufene Subscriptions aufräumen
+### Phase 6: Push-Benachrichtigungen (`v0.6.0`, abgeschlossen am 19.11.2026)
+- [x] VAPID-Setup und eigener Service Worker (`src/sw.ts`)
+- [x] „Benachrichtigungen aktivieren“ inklusive iOS-Homescreen-Hinweis
+- [x] Einstellungsseite pro Gerät (siehe Push-Benachrichtigungen)
+- [x] `data-repo-template/` mit `notify-on-change.yml`, `reminders.yml` und `notify.mjs`
+- [x] Testbenachrichtigung
+- [x] Abgelaufene Subscriptions aufräumen
+
+Hinweise zur Umsetzung:
+- Feature `notifications`, Route `/einstellungen/benachrichtigungen`. Die id des eigenen `devices`-Eintrags merkt sich das Gerät (Pref `pushDeviceId`). Beim Start gleicht `notificationActions.refresh()` Person, Gerätename und eine erneuerte Subscription ab, ohne nach Berechtigung zu fragen.
+- `lib/push.ts`: `pushSupport()` liefert `dev` (kein Service Worker unter `npm run dev`), `no-key`, `ios-not-installed`, `unsupported` oder `ok`. Push geht nur über HTTPS oder localhost, nicht über `http://` im WLAN.
+- Testbenachrichtigung: Die App setzt `devices[].testRequestedAt`; `notify-on-change` schickt dann einen echten Push an genau dieses Gerät (auch in Ruhezeiten).
+- Die Logik liegt in `src/notify/` (läuft in Node, nur `@/lib` und `@/types`, per ESLint erzwungen) mit Tests; `notify/main.ts` ist der Node-Einstieg. `npm run build:notify` bündelt alles samt rrule nach `data-repo-template/scripts/notify.mjs`. Das Daten-Repo braucht nur `web-push`.
+- Änderungen: Neue, zugewiesene (inkl. Rotation), erledigte, geänderte/verschobene Aufgaben und neue/wieder geöffnete Einkaufsartikel; Häkchen in Checklisten lösen nichts aus. Pro Gerät und Commit wird zu einer Nachricht gebündelt. Nie an Geräte der Person in `updatedBy`.
+- Erinnerungen laufen stündlich (Minute 7) und gehen raus, sobald der Erinnerungszeitpunkt höchstens 30 Minuten entfernt ist; Ganztägiges und Modus „Morgen“ ab 7 Uhr. Die Zusammenfassung kommt im ersten Lauf ab der gewählten Uhrzeit (Fenster 3 h). Verschicktes steht in `notify-state.json` (3 Tage).
+- In Ruhezeiten wird nichts verschickt und auch nichts als verschickt gemerkt.
+- HTTP 404/410 beim Senden: Gerät wird als Tombstone mit `pushSubscription: null` gespeichert (Commit mit `[skip ci]`).
+- Fehlen die VAPID-Secrets, überspringen die Workflows mit einem Hinweis, statt fehlzuschlagen.
+- VAPID-Schlüssel liegen lokal in `.env.vapid` (beide) und `.env.local` (öffentlicher, für lokale Builds), beide von Git ausgeschlossen. Das Daten-Repo heißt auf GitHub inzwischen `Organizer-Data` (Groß-/Kleinschreibung ist der API egal).
 
 ### Später / optional
 - Sync mit Google- oder Apple-Kalender (z. B. als ICS-Export)
