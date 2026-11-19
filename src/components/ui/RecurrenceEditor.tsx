@@ -12,7 +12,7 @@ import {
   type MonthlyMode,
   type RecurrenceSpec,
 } from '@/lib/recurrence'
-import { TextField } from '@/components/ui/TextField'
+import { TextField } from './TextField'
 
 export interface RecurrenceValue {
   spec: RecurrenceSpec | null
@@ -25,8 +25,10 @@ interface Props {
   onChange: (v: RecurrenceValue) => void
   /** Starttermin der Serie (JJJJ-MM-TT), liefert Wochentag/Tag für die Beschreibung */
   date: string
-  /** Rotation erst ab zwei Zuständigen */
-  canRotate: boolean
+  /** Rotation erst ab zwei Zuständigen; undefined = keine Rotation anbieten (Termine) */
+  canRotate?: boolean
+  /** „Nach Erledigung“ anbieten (nur Aufgaben) */
+  allowAfterCompletion?: boolean
 }
 
 const FREQS: Array<{ key: Freq | ''; label: string }> = [
@@ -49,7 +51,8 @@ const UNITS: Record<Freq, [string, string]> = {
 const chip = (active: boolean) =>
   `min-h-10 rounded-xl border text-sm ${active ? 'border-brand-700 bg-brand-50 font-semibold' : 'border-slate-300'}`
 
-export function RecurrenceEditor({ value, onChange, date, canRotate }: Props) {
+/** Wiederholung einstellen (Aufgaben und Termine). */
+export function RecurrenceEditor({ value, onChange, date, canRotate, allowAfterCompletion = true }: Props) {
   const { spec, mode, rotation } = value
   const afterCompletion = mode === 'after_completion'
   /** Eingabe im Intervall-Feld, solange es fokussiert ist (darf kurz leer sein) */
@@ -100,7 +103,7 @@ export function RecurrenceEditor({ value, onChange, date, canRotate }: Props) {
 
       {spec && (
         <>
-          {spec.freq !== 'weekdays' && (
+          {spec.freq !== 'weekdays' && allowAfterCompletion && (
             <div className="grid grid-cols-2 gap-2" role="group" aria-label="Art der Wiederholung">
               <button
                 type="button"
@@ -193,19 +196,21 @@ export function RecurrenceEditor({ value, onChange, date, canRotate }: Props) {
             />
           )}
 
-          <label className={`flex min-h-10 items-center gap-3 text-sm ${canRotate ? '' : 'text-slate-400'}`}>
-            <input
-              type="checkbox"
-              className="h-5 w-5 accent-brand-700"
-              checked={rotation && canRotate}
-              disabled={!canRotate}
-              onChange={(e) => onChange({ ...value, rotation: e.target.checked })}
-            />
-            <span>
-              Zuständigkeit wechselt reihum
-              {!canRotate && <span className="block text-xs">Dafür mindestens zwei Personen auswählen.</span>}
-            </span>
-          </label>
+          {canRotate !== undefined && (
+            <label className={`flex min-h-10 items-center gap-3 text-sm ${canRotate ? '' : 'text-slate-400'}`}>
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-brand-700"
+                checked={rotation && canRotate}
+                disabled={!canRotate}
+                onChange={(e) => onChange({ ...value, rotation: e.target.checked })}
+              />
+              <span>
+                Zuständigkeit wechselt reihum
+                {!canRotate && <span className="block text-xs">Dafür mindestens zwei Personen auswählen.</span>}
+              </span>
+            </label>
+          )}
 
           <p className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">↻ {summary}</p>
         </>

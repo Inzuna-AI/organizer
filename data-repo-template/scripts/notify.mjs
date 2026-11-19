@@ -254,14 +254,14 @@ var require_rrule = __commonJS({
           var tzOffset = function(date) {
             return date.getTimezoneOffset() * 60 * 1e3;
           };
-          var daysBetween = function(date1, date2) {
+          var daysBetween2 = function(date1, date2) {
             var date1ms = date1.getTime();
             var date2ms = date2.getTime();
             var differencems = date1ms - date2ms;
             return Math.round(differencems / ONE_DAY);
           };
           var toOrdinal = function(date) {
-            return daysBetween(date, ORDINAL_BASE);
+            return daysBetween2(date, ORDINAL_BASE);
           };
           var fromOrdinal = function(ordinal) {
             return new Date(ORDINAL_BASE.getTime() + ordinal * ONE_DAY);
@@ -3272,6 +3272,7 @@ var COLLECTIONS = [
   "rooms",
   "tasks",
   "occurrences",
+  "events",
   "shoppingLists",
   "shoppingItems",
   "devices"
@@ -3287,6 +3288,57 @@ function normalizeData(raw) {
 }
 function serializeData(data) {
   return JSON.stringify(data, null, 2) + "\n";
+}
+
+// src/lib/dates.ts
+var TIME_ZONE = "Europe/Berlin";
+var dateFmt = new Intl.DateTimeFormat("de-DE", {
+  timeZone: TIME_ZONE,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric"
+});
+var timeFmt = new Intl.DateTimeFormat("de-DE", {
+  timeZone: TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit"
+});
+var longFmt = new Intl.DateTimeFormat("de-DE", {
+  timeZone: TIME_ZONE,
+  weekday: "long",
+  day: "numeric",
+  month: "long"
+});
+var WEEKDAYS_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+function parseYmd(date) {
+  const [y, m, d] = date.slice(0, 10).split("-").map(Number);
+  return [y, m, d];
+}
+function addDays(date, n) {
+  const [y, m, d] = parseYmd(date);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+function weekdayShort(date) {
+  const [y, m, d] = parseYmd(date);
+  return WEEKDAYS_SHORT[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+}
+function formatDay(date, today = berlinDateString()) {
+  if (date === today) return "Heute";
+  if (date === addDays(today, 1)) return "Morgen";
+  if (date === addDays(today, -1)) return "Gestern";
+  const [y, m, d] = parseYmd(date);
+  const base = `${weekdayShort(date)}, ${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.`;
+  return y === parseYmd(today)[0] ? base : `${base}${y}`;
+}
+function berlinDateString(d = /* @__PURE__ */ new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(d);
+  const get = (t) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 // src/lib/recurrence.ts
@@ -3487,55 +3539,112 @@ function overdueInstance(t, occurrences, today) {
   return latest && latest.status === "open" ? latest : null;
 }
 
-// src/lib/dates.ts
-var TIME_ZONE = "Europe/Berlin";
-var dateFmt = new Intl.DateTimeFormat("de-DE", {
-  timeZone: TIME_ZONE,
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric"
-});
-var timeFmt = new Intl.DateTimeFormat("de-DE", {
-  timeZone: TIME_ZONE,
-  hour: "2-digit",
-  minute: "2-digit"
-});
-var longFmt = new Intl.DateTimeFormat("de-DE", {
-  timeZone: TIME_ZONE,
-  weekday: "long",
-  day: "numeric",
-  month: "long"
-});
-var WEEKDAYS_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
-function parseYmd(date) {
-  const [y, m, d] = date.slice(0, 10).split("-").map(Number);
-  return [y, m, d];
+// src/lib/events.ts
+var DEFAULT_EVENT_MIN = 60;
+var pad2 = (n) => String(n).padStart(2, "0");
+function toUtc(s) {
+  const [date, time = "00:00"] = s.split("T");
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  return Date.UTC(y, m - 1, d, h, min);
 }
-function addDays(date, n) {
-  const [y, m, d] = parseYmd(date);
-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+function fromUtc(ms, withTime2) {
+  const d = new Date(ms);
+  const date = `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+  return withTime2 ? `${date}T${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}` : date;
 }
-function weekdayShort(date) {
-  const [y, m, d] = parseYmd(date);
-  return WEEKDAYS_SHORT[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+function addMinutesTo(startAt, minutes) {
+  return fromUtc(toUtc(startAt) + minutes * 6e4, true);
 }
-function formatDay(date, today = berlinDateString()) {
-  if (date === today) return "Heute";
-  if (date === addDays(today, 1)) return "Morgen";
-  if (date === addDays(today, -1)) return "Gestern";
-  const [y, m, d] = parseYmd(date);
-  const base = `${weekdayShort(date)}, ${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.`;
-  return y === parseYmd(today)[0] ? base : `${base}${y}`;
+function minutesBetween(a, b) {
+  return Math.round((toUtc(b) - toUtc(a)) / 6e4);
 }
-function berlinDateString(d = /* @__PURE__ */ new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(d);
-  const get = (t) => parts.find((p) => p.type === t)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
+function daysBetween(a, b) {
+  return Math.round((toUtc(b.slice(0, 10)) - toUtc(a.slice(0, 10))) / 864e5);
+}
+var isAllDay = (e) => e.allDay || e.startAt.length < 16;
+function eventSpan(e) {
+  if (isAllDay(e)) return e.endAt ? Math.max(0, daysBetween(e.startAt, e.endAt)) : 0;
+  if (!e.endAt || e.endAt.length < 16) return DEFAULT_EVENT_MIN;
+  return Math.max(5, minutesBetween(e.startAt, e.endAt));
+}
+function endFor(e, startAt) {
+  const span = eventSpan(e);
+  return startAt.length < 16 ? addDays(startAt.slice(0, 10), span) : addMinutesTo(startAt, span);
+}
+function dayRange(i) {
+  const first = i.startAt.slice(0, 10);
+  if (i.allDay) return [first, i.endAt.slice(0, 10)];
+  let last = i.endAt.slice(0, 10);
+  if (i.endAt.slice(11) === "00:00" && last > first) last = addDays(last, -1);
+  return [first, last < first ? first : last];
+}
+function asSeries(e) {
+  return {
+    id: e.id,
+    startAt: e.startAt,
+    allDay: isAllDay(e),
+    recurrenceRule: e.recurrenceRule,
+    recurrenceMode: "fixed",
+    rotation: false,
+    assigneeIds: e.personIds
+  };
+}
+function exceptionOccs(e) {
+  return (e.exceptions ?? []).map((x) => ({
+    id: `${e.id}:${x.date}`,
+    updatedAt: e.updatedAt,
+    deleted: false,
+    createdBy: null,
+    updatedBy: null,
+    taskId: e.id,
+    originalDate: x.date,
+    movedTo: x.movedTo,
+    status: x.skipped ? "skipped" : "open",
+    completedAt: null,
+    completedBy: null,
+    assigneeId: null
+  }));
+}
+function single(e) {
+  const allDay = isAllDay(e);
+  const startAt = allDay ? e.startAt.slice(0, 10) : e.startAt;
+  return { event: e, date: null, startAt, endAt: endFor(e, startAt), allDay, moved: false };
+}
+function eventInstances(e, from, to) {
+  if (e.deleted || !e.startAt) return [];
+  const overlaps = (i) => {
+    const [a, b] = dayRange(i);
+    return a <= to && b >= from;
+  };
+  if (!isSeries(e)) {
+    const i = single(e);
+    return overlaps(i) ? [i] : [];
+  }
+  const reach = isAllDay(e) ? eventSpan(e) : Math.ceil(eventSpan(e) / 1440);
+  return expandRange(asSeries(e), exceptionOccs(e), addDays(from, -reach), to).map((inst) => ({
+    event: e,
+    date: inst.date,
+    startAt: inst.startAt,
+    endAt: endFor(e, inst.startAt),
+    allDay: inst.allDay,
+    moved: inst.moved
+  })).filter(overlaps);
+}
+function eventsBetween(events, from, to) {
+  const out = [];
+  for (const e of events) out.push(...eventInstances(e, from, to));
+  return out.sort(compareInstances);
+}
+function compareInstances(a, b) {
+  const da = a.startAt.slice(0, 10);
+  const db = b.startAt.slice(0, 10);
+  if (da !== db) return da < db ? -1 : 1;
+  if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+  return a.startAt < b.startAt ? -1 : a.startAt > b.startAt ? 1 : 0;
+}
+function involves(e, personId) {
+  return e.personIds.length === 0 || !!personId && e.personIds.includes(personId);
 }
 
 // src/notify/time.ts
@@ -3600,6 +3709,9 @@ function personName(data, id) {
 function taskUrl(taskId, date) {
   return date ? `#/aufgaben/${taskId}?datum=${date}` : `#/aufgaben/${taskId}`;
 }
+function eventUrl(eventId, date) {
+  return date ? `#/termine/${eventId}?datum=${date}` : `#/termine/${eventId}`;
+}
 function slotsBetween(data, from, to) {
   const out = [];
   for (const t of data.tasks) {
@@ -3661,6 +3773,10 @@ function listTitles(titles, max = 3) {
 
 // src/notify/changes.ts
 var WATCHED = ["title", "description", "startAt", "allDay", "durationMin", "roomId", "priority", "recurrenceRule", "recurrenceMode"];
+var EVENT_WATCHED = ["title", "location", "startAt", "endAt", "allDay", "personIds", "recurrenceRule", "exceptions"];
+function nextEventInstance(e, today) {
+  return eventsBetween([e], today, addDays(today, 400))[0] ?? eventsBetween([e], e.startAt.slice(0, 10), e.startAt.slice(0, 10))[0] ?? null;
+}
 function whenOf(t, occurrences, date, today) {
   if (isSeries(t) && date) {
     const i = instanceAt(t, occurrences, date);
@@ -3747,6 +3863,20 @@ function detectChanges(prev, next, today) {
       });
     }
   }
+  const prevEvents = new Map((prev.events ?? []).map((e) => [e.id, e]));
+  for (const e of next.events ?? []) {
+    if (e.deleted) continue;
+    const p = prevEvents.get(e.id);
+    const base = { title: e.title, taskId: null, eventId: e.id, roomId: null, assigneeIds: e.personIds };
+    const next1 = nextEventInstance(e, today);
+    const when = next1 ? slotLabel(next1.startAt, next1.allDay, today) : void 0;
+    const date = next1?.date ?? null;
+    if (!p || p.deleted) {
+      events.push({ kind: "newEvent", by: e.updatedBy ?? e.createdBy, ...base, date, when });
+    } else if (p.updatedAt !== e.updatedAt && EVENT_WATCHED.some((k) => JSON.stringify(p[k]) !== JSON.stringify(e[k]))) {
+      events.push({ kind: "changedEvent", by: e.updatedBy, ...base, date, when });
+    }
+  }
   const prevItems = new Map(prev.shoppingItems.map((i) => [i.id, i]));
   for (const i of next.shoppingItems) {
     if (i.deleted || i.checked) continue;
@@ -3763,7 +3893,7 @@ function dedupe(events) {
   return events.filter((e) => {
     if (e.kind === "changed" && completed.has(e.taskId)) return false;
     if (e.kind === "newShoppingItem") return true;
-    const key = `${e.kind}|${e.taskId}|${e.kind === "completed" ? e.date : ""}|${e.assignee ?? ""}`;
+    const key = `${e.kind}|${e.taskId ?? e.eventId}|${e.kind === "completed" ? e.date : ""}|${e.assignee ?? ""}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -3785,6 +3915,9 @@ function eventsForDevice(device, events) {
         return n.completedByOther && relevant(device, e.roomId, e.assigneeIds);
       case "changed":
         return n.changedOrMoved && relevant(device, e.roomId, e.assigneeIds);
+      case "newEvent":
+      case "changedEvent":
+        return (n.newEvent ?? true) && involves({ personIds: e.assigneeIds }, me);
     }
   });
   const assigned = new Set(picked.filter((e) => e.kind === "assigned").map((e) => e.taskId));
@@ -3795,8 +3928,15 @@ var PLURAL = {
   assigned: (n) => `${n} dir zugewiesen`,
   completed: (n) => `${n} erledigt`,
   changed: (n) => `${n} ge\xE4ndert`,
-  newShoppingItem: (n) => n === 1 ? "1 Einkaufsartikel" : `${n} Einkaufsartikel`
+  newShoppingItem: (n) => n === 1 ? "1 Einkaufsartikel" : `${n} Einkaufsartikel`,
+  newEvent: (n) => n === 1 ? "1 neuer Termin" : `${n} neue Termine`,
+  changedEvent: (n) => n === 1 ? "1 Termin ge\xE4ndert" : `${n} Termine ge\xE4ndert`
 };
+function targetUrl(e) {
+  if (e.taskId) return taskUrl(e.taskId, e.date);
+  if (e.eventId) return eventUrl(e.eventId, e.date);
+  return null;
+}
 function composeMessage(events, data) {
   if (events.length === 0) return null;
   const actors = [...new Set(events.map((e) => e.by))];
@@ -3804,8 +3944,8 @@ function composeMessage(events, data) {
   const who = actor ?? "Mehrere";
   const kinds = [...new Set(events.map((e) => e.kind))];
   const onlyShopping = kinds.length === 1 && kinds[0] === "newShoppingItem";
-  const taskIds = [...new Set(events.map((e) => e.taskId).filter(Boolean))];
-  const url = onlyShopping ? "#/einkauf" : taskIds.length === 1 && kinds.every((k) => k !== "newShoppingItem") ? taskUrl(taskIds[0], events.find((e) => e.taskId)?.date ?? null) : "#/";
+  const targets = [...new Set(events.map((e) => e.taskId ?? e.eventId).filter(Boolean))];
+  const url = onlyShopping ? "#/einkauf" : targets.length === 1 && kinds.every((k) => k !== "newShoppingItem") ? targetUrl(events.find((e) => e.taskId ?? e.eventId)) ?? "#/" : "#/";
   if (events.length === 1) {
     const e = events[0];
     const withWhen = e.when ? `${e.title} \xB7 ${e.when}` : e.title;
@@ -3820,6 +3960,10 @@ function composeMessage(events, data) {
         return { title: `${who} hat eine Aufgabe ge\xE4ndert`, body: withWhen, url };
       case "newShoppingItem":
         return { title: "Einkaufszettel", body: `${who} hat ${e.title} hinzugef\xFCgt`, url };
+      case "newEvent":
+        return { title: `Neuer Termin von ${who}`, body: withWhen, url };
+      case "changedEvent":
+        return { title: `${who} hat einen Termin ge\xE4ndert`, body: withWhen, url };
     }
   }
   const titles = listTitles(events.map((e) => e.title));
@@ -3836,6 +3980,10 @@ function composeMessage(events, data) {
         return { title: `${who} hat ${n} Aufgaben ge\xE4ndert`, body: titles, url };
       case "newShoppingItem":
         return { title: `${who} hat ${n} Artikel hinzugef\xFCgt`, body: titles, url };
+      case "newEvent":
+        return { title: `${who} hat ${n} neue Termine angelegt`, body: titles, url };
+      case "changedEvent":
+        return { title: `${who} hat ${n} Termine ge\xE4ndert`, body: titles, url };
     }
   }
   const counts = kinds.map((k) => PLURAL[k](events.filter((e) => e.kind === k).length));
@@ -3885,9 +4033,20 @@ function dueReminder(data, device, now, state) {
   const minutes = minutesOf(time);
   const morning = minutes >= minutesOf(MORNING) && minutes < 12 * 60;
   const nowMs = now.getTime();
+  const candidates = [
+    ...myEvents(data, device, today, addDays(today, 1)),
+    ...slotsBetween(data, today, addDays(today, 1)).filter(mine(device)).map((s) => ({
+      kind: "task",
+      key: reminderKey(device, s),
+      title: s.task.title,
+      startAt: s.startAt,
+      allDay: s.allDay,
+      url: taskUrl(s.task.id, s.date)
+    }))
+  ];
   const due = [];
-  for (const s of slotsBetween(data, today, addDays(today, 1)).filter(mine(device))) {
-    if (state.sent[reminderKey(device, s)]) continue;
+  for (const s of candidates) {
+    if (state.sent[s.key]) continue;
     const day = s.startAt.slice(0, 10);
     if (s.allDay || n.dueReminderMinutesBefore < 0) {
       const notStarted = s.allDay || berlinWallToDate(s.startAt).getTime() > nowMs;
@@ -3900,22 +4059,30 @@ function dueReminder(data, device, now, state) {
   }
   if (due.length === 0) return null;
   due.sort((a, b) => a.startAt.localeCompare(b.startAt));
-  const keys = due.map((s) => reminderKey(device, s));
+  const keys = due.map((s) => s.key);
   if (due.length === 1) {
     const s = due[0];
     return {
-      payload: {
-        title: "Erinnerung",
-        body: `${s.task.title} \xB7 ${slotLabel(s.startAt, s.allDay, today)}`,
-        url: taskUrl(s.task.id, s.date)
-      },
+      payload: { title: "Erinnerung", body: `${s.title} \xB7 ${slotLabel(s.startAt, s.allDay, today)}`, url: s.url },
       keys
     };
   }
+  const kinds = new Set(due.map((s) => s.kind));
+  const what = kinds.size > 1 ? "Eintr\xE4ge" : kinds.has("event") ? "Termine" : "Aufgaben";
   return {
-    payload: { title: `Erinnerung: ${due.length} Aufgaben`, body: listTitles(due.map((s) => s.task.title), 4), url: "#/" },
+    payload: { title: `Erinnerung: ${due.length} ${what}`, body: listTitles(due.map((s) => s.title), 4), url: "#/" },
     keys
   };
+}
+function myEvents(data, device, from, to) {
+  return eventsBetween(data.events ?? [], from, to).filter((i) => i.startAt.slice(0, 10) >= from && involves(i.event, device.personId)).map((i) => ({
+    kind: "event",
+    key: `r|${device.id}|ev:${i.event.id}|${i.startAt}`,
+    title: i.event.title,
+    startAt: i.startAt,
+    allDay: i.allDay,
+    url: eventUrl(i.event.id, i.date)
+  }));
 }
 function dailySummary(data, device, now, state) {
   const n = device.notify;
@@ -3927,10 +4094,14 @@ function dailySummary(data, device, now, state) {
   if (t < at || t >= at + SUMMARY_WINDOW_MIN) return null;
   const todays = slotsBetween(data, today, today).filter(mine(device));
   const overdue = overdueSlots(data, today).filter(mine(device));
-  if (todays.length === 0 && overdue.length === 0) return { payload: null };
-  const parts = [`Heute: ${todays.length === 1 ? "1 Aufgabe" : `${todays.length} Aufgaben`}`];
+  const events = eventsBetween(data.events ?? [], today, today).filter((i) => involves(i.event, device.personId));
+  if (todays.length === 0 && overdue.length === 0 && events.length === 0) return { payload: null };
+  const counts = [];
+  if (events.length > 0) counts.push(events.length === 1 ? "1 Termin" : `${events.length} Termine`);
+  if (todays.length > 0 || events.length === 0) counts.push(todays.length === 1 ? "1 Aufgabe" : `${todays.length} Aufgaben`);
+  const parts = [`Heute: ${counts.join(", ")}`];
   if (overdue.length > 0) parts.push(`${overdue.length} \xFCberf\xE4llig`);
-  const titles = listTitles([...overdue, ...todays].map((s) => s.task.title), 4);
+  const titles = listTitles([...events.map((i) => i.event.title), ...[...overdue, ...todays].map((s) => s.task.title)], 4);
   return { payload: { title: "Dein Tag", body: `${parts.join(", ")}
 ${titles}`, url: "#/", tag: "summary" } };
 }

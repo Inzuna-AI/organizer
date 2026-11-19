@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { berlinDateString, formatLongDate } from '@/lib/dates'
 import { loadPref, savePref } from '@/lib/storage'
-import { Fab } from '@/components/ui/Fab'
+import { FabChoice } from '@/components/ui/FabChoice'
+import { involves } from '@/lib/events'
 import { useAppStore, useMe } from '@/store'
 import { instanceKey, TaskItem, todayBuckets, useTaskInstances } from '@/features/tasks'
+import { EventItem, useEventsBetween } from '@/features/events'
 
 export function TodayPage() {
   const me = useMe()
@@ -22,6 +24,11 @@ export function TodayPage() {
     [tasks, today, mineOnly, meId],
   )
   const nothing = b.overdue.length === 0 && b.today.length === 0
+  const allEvents = useEventsBetween(today, today)
+  const events = useMemo(
+    () => (mineOnly ? allEvents.filter((i) => involves(i.event, meId)) : allEvents),
+    [allEvents, mineOnly, meId],
+  )
 
   return (
     <div className="space-y-5 p-4">
@@ -48,6 +55,17 @@ export function TodayPage() {
         </div>
       </div>
 
+      {events.length > 0 && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold text-slate-500">Termine heute ({events.length})</h3>
+          <ul className="space-y-2">
+            {events.map((i) => (
+              <EventItem key={i.date ? `${i.event.id}:${i.date}` : i.event.id} instance={i} day={today} />
+            ))}
+          </ul>
+        </section>
+      )}
+
       {b.overdue.length > 0 && (
         <section>
           <h3 className="mb-2 text-sm font-semibold text-red-600">Überfällig ({b.overdue.length})</h3>
@@ -60,7 +78,7 @@ export function TodayPage() {
       )}
 
       <section>
-        <h3 className="mb-2 text-sm font-semibold text-slate-500">Heute ({b.today.length})</h3>
+        <h3 className="mb-2 text-sm font-semibold text-slate-500">Aufgaben heute ({b.today.length})</h3>
         {b.today.length > 0 ? (
           <ul className="space-y-2">
             {b.today.map((t) => (
@@ -69,7 +87,7 @@ export function TodayPage() {
           </ul>
         ) : (
           <p className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
-            {nothing && b.doneToday.length > 0 ? 'Alles erledigt für heute. 🎉' : 'Für heute steht nichts an.'}
+            {nothing && b.doneToday.length > 0 ? 'Alles erledigt für heute. 🎉' : events.length ? 'Keine Aufgaben für heute.' : 'Für heute steht nichts an.'}
           </p>
         )}
       </section>
@@ -102,7 +120,13 @@ export function TodayPage() {
         </section>
       )}
 
-      <Fab to={`/aufgaben/neu?datum=${today}`} label="Neue Aufgabe für heute" />
+      <FabChoice
+        label="Neuer Termin oder neue Aufgabe für heute"
+        options={[
+          { label: '📅 Termin', to: `/termine/neu?datum=${today}` },
+          { label: '☐ Aufgabe', to: `/aufgaben/neu?datum=${today}` },
+        ]}
+      />
     </div>
   )
 }

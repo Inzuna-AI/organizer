@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import type { DataFile, Device, NotifySettings, Occurrence, ShoppingItem, Task } from '@/types/data'
+﻿import { describe, expect, it } from 'vitest'
+import type { CalEvent, DataFile, Device, NotifySettings, Occurrence, ShoppingItem, Task } from '@/types/data'
 import { changeRun, composeMessage, detectChanges, eventsForDevice, testMessages } from './changes'
 import { expireDevices } from './common'
 import { emptyState, reminderRun } from './reminders'
@@ -41,6 +41,7 @@ const NOTIFY: NotifySettings = {
   completedByOther: true,
   changedOrMoved: true,
   newShoppingItem: true,
+  newEvent: true,
   onlyMyTasks: false,
   dueReminder: true,
   dueReminderMinutesBefore: 60,
@@ -66,7 +67,7 @@ function device(id: string, personId: string, notify: Partial<NotifySettings> = 
 
 function data(o: Partial<DataFile> = {}): DataFile {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     persons: [
       { id: ME, name: 'Ich', kuerzel: 'IC', color: '#000', updatedAt: T0, deleted: false, createdBy: null, updatedBy: null },
       { id: LENA, name: 'Lena', kuerzel: 'LE', color: '#000', updatedAt: T0, deleted: false, createdBy: null, updatedBy: null },
@@ -74,6 +75,7 @@ function data(o: Partial<DataFile> = {}): DataFile {
     rooms: [],
     tasks: [],
     occurrences: [],
+    events: [],
     shoppingLists: [],
     shoppingItems: [],
     devices: [device('d-me', ME), device('d-lena', LENA)],
@@ -340,5 +342,67 @@ describe('abgelaufene Anmeldungen', () => {
     const out = expireDevices(data(), ['d-lena'], T1)
     expect(out.devices.find((d) => d.id === 'd-lena')).toMatchObject({ deleted: true, pushSubscription: null, updatedAt: T1 })
     expect(out.devices.find((d) => d.id === 'd-me')?.deleted).toBe(false)
+  })
+})
+
+
+describe('Termine', () => {
+  const ERINA = 'erina'
+  function ev(o: Partial<CalEvent>): CalEvent {
+    return {
+      id: 'e',
+      updatedAt: T1,
+      deleted: false,
+      createdBy: LENA,
+      updatedBy: LENA,
+      title: 'Zahnarzt',
+      location: '',
+      note: '',
+      startAt: '2026-11-20T15:00',
+      endAt: '2026-11-20T16:00',
+      allDay: false,
+      personIds: [ME],
+      recurrenceRule: null,
+      exceptions: [],
+      ...o,
+    }
+  }
+  const at = (iso: string) => new Date(iso)
+
+  it('Lena legt einen Termin für mich an: Nachricht mit Link zum Termin', () => {
+    const out = changeRun(data(), data({ events: [ev({})] }), NOON)
+    expect(out).toHaveLength(1)
+    expect(out[0].device.id).toBe('d-me')
+    expect(out[0].payload).toMatchObject({ title: 'Neuer Termin von Lena', body: 'Zahnarzt · Morgen 15:00', url: '#/termine/e' })
+  })
+
+  it('nicht beteiligt oder Schalter aus: keine Nachricht', () => {
+    expect(changeRun(data(), data({ events: [ev({ personIds: [ERINA] })] }), NOON)).toEqual([])
+    const off = data({ events: [ev({})], devices: [device('d-me', ME, { newEvent: false })] })
+    expect(changeRun(data(), off, NOON)).toEqual([])
+  })
+
+  it('Termin ohne Personen gilt für alle; geänderte Zeit wird gemeldet', () => {
+    const before = data({ events: [ev({ personIds: [], updatedAt: T0 })] })
+    const after = data({ events: [ev({ personIds: [], startAt: '2026-11-20T17:00', endAt: '2026-11-20T18:00' })] })
+    const out = changeRun(before, after, NOON)
+    expect(out.map((m) => m.payload.title)).toEqual(['Lena hat einen Termin geändert'])
+  })
+
+  it('Erinnerung vor einem Termin und Zählung in der Zusammenfassung', () => {
+    const d = data({ events: [ev({ startAt: '2026-11-19T15:00', endAt: '2026-11-19T16:00' })], devices: [device('d-me', ME)] })
+    // 13:35 Berlin, Termin um 15:00, 60 Min. vorher
+    const run = reminderRun(d, emptyState(), at('2026-11-19T12:35:00Z'))
+    expect(run.messages[0].payload).toMatchObject({ title: 'Erinnerung', body: 'Zahnarzt · Heute 15:00', url: '#/termine/e' })
+    expect(reminderRun(d, run.state, at('2026-11-19T13:05:00Z')).messages).toEqual([])
+    const summary = reminderRun({ ...d, devices: [device('d-me', ME, { dueReminder: false })] }, emptyState(), at('2026-11-19T07:05:00Z'))
+    expect(summary.messages[0].payload.body).toBe('Heute: 1 Termin\nZahnarzt')
+  })
+
+  it('Daten ohne events (Schema 1) brechen nichts', () => {
+    const old = { ...data() } as Partial<DataFile>
+    delete old.events
+    expect(() => changeRun(old as DataFile, old as DataFile, NOON)).not.toThrow()
+    expect(() => reminderRun(old as DataFile, emptyState(), NOON)).not.toThrow()
   })
 })

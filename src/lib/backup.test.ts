@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 import type { DataFile, Room } from '@/types/data'
 import { describeBackup, exportText, mergeImport, parseBackup, restoreImport } from './backup'
 
@@ -8,11 +8,12 @@ function room(id: string, name: string, updatedAt: string, deleted = false): Roo
 
 function data(rooms: Room[], extra: Partial<DataFile> = {}): DataFile {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     persons: [],
     rooms,
     tasks: [],
     occurrences: [],
+    events: [],
     shoppingLists: [],
     shoppingItems: [],
     devices: [],
@@ -30,7 +31,7 @@ describe('parseBackup', () => {
   it('ergänzt fehlende Sammlungen', () => {
     const r = parseBackup(JSON.stringify({ rooms: [room('a', 'Bad', 'x')] }))
     expect(r.ok && r.data.tasks).toEqual([])
-    expect(r.ok && r.data.schemaVersion).toBe(1)
+    expect(r.ok && r.data.schemaVersion).toBe(2)
   })
 
   it('lehnt kaputte oder fremde Dateien ab', () => {

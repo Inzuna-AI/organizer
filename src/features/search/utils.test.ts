@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import type { Task } from '@/types/data'
-import { haystack, matches, normalize, searchTasks } from './utils'
+﻿import { describe, expect, it } from 'vitest'
+import type { CalEvent, Task } from '@/types/data'
+import { haystack, matches, normalize, searchEvents, searchTasks } from './utils'
 
 function task(o: Partial<Task>): Task {
   return {
@@ -74,5 +74,24 @@ describe('searchTasks', () => {
     const r = searchTasks([s], instances, 'blumen', noRoom)
     expect(r.open.map((t) => t.occurrenceDate)).toEqual(['2026-11-18'])
     expect(r.done).toEqual([])
+  })
+})
+
+
+describe('searchEvents', () => {
+  const base = { updatedAt: 'x', deleted: false, createdBy: null, updatedBy: null }
+  const ev = (id: string, title: string, startAt: string, o: Partial<CalEvent> = {}): CalEvent => ({
+    ...base, id, title, location: '', note: '', startAt, endAt: null, allDay: false, personIds: [], recurrenceRule: null, exceptions: [], ...o,
+  })
+  it('findet Titel, Ort und Notiz; kommende vor vergangenen', () => {
+    const list = [
+      ev('a', 'Zahnarzt', '2026-11-25T10:00', { location: 'Praxis Müller' }),
+      ev('b', 'Elternabend', '2026-11-01T19:00', { note: 'Müller fragen' }),
+      ev('c', 'Training', '2026-11-02T18:00', { recurrenceRule: 'FREQ=WEEKLY;BYDAY=MO' }),
+    ]
+    const r = searchEvents(list, 'muller', '2026-11-19')
+    expect(r.upcoming.map((i) => i.event.id)).toEqual(['a'])
+    expect(r.past.map((i) => i.event.id)).toEqual(['b'])
+    expect(searchEvents(list, 'training', '2026-11-19').upcoming[0].startAt).toBe('2026-11-23T18:00')
   })
 })

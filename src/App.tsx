@@ -8,6 +8,7 @@ import { SetupPage } from '@/features/setup'
 import { SettingsPage } from '@/features/settings'
 import { TodayPage } from '@/features/today'
 import { EditTaskPage, NewTaskPage, TasksPage } from '@/features/tasks'
+import { EditEventPage, NewEventPage } from '@/features/events'
 // Kalender (FullCalendar) erst beim Öffnen laden, damit der Start schnell bleibt
 const CalendarPage = lazy(() => import('@/features/calendar').then((m) => ({ default: m.CalendarPage })))
 import { ShoppingPage } from '@/features/shopping'
@@ -25,6 +26,7 @@ const TITLES: Record<string, string> = {
   '/kalender': 'Kalender',
   '/aufgaben': 'Aufgaben',
   '/aufgaben/neu': 'Neue Aufgabe',
+  '/termine/neu': 'Neuer Termin',
   '/einkauf': 'Einkauf',
   '/suche': 'Suche',
   '/einstellungen': 'Einstellungen',
@@ -36,6 +38,8 @@ const TITLES: Record<string, string> = {
 /** Übergeordnete Seite einer Unterseite, z. B. /aufgaben/123 → /aufgaben */
 function parentOf(pathname: string): string | null {
   if (pathname === '/suche') return '/'
+  // Termine haben keine eigene Liste, sie stehen im Kalender
+  if (pathname.startsWith('/termine/')) return '/kalender'
   const parts = pathname.split('/').filter(Boolean)
   return parts.length > 1 ? `/${parts.slice(0, -1).join('/')}` : null
 }
@@ -53,7 +57,7 @@ function Shell() {
   useEffect(() => {
     if (hasData) void notificationActions.refresh()
   }, [device, hasData])
-  const title = TITLES[pathname] ?? (pathname.startsWith('/aufgaben/') ? 'Aufgabe' : 'Organizer')
+  const title = TITLES[pathname] ?? (pathname.startsWith('/aufgaben/') ? 'Aufgabe' : pathname.startsWith('/termine/') ? 'Termin' : 'Organizer')
   // Lupe auf den Hauptseiten, die Aufgaben zeigen
   const searchable = pathname === '/' || pathname === '/aufgaben' || pathname === '/kalender'
 
@@ -85,6 +89,8 @@ function Shell() {
           <Route path="/aufgaben" element={<TasksPage />} />
           <Route path="/aufgaben/neu" element={<NewTaskPage />} />
           <Route path="/aufgaben/:id" element={<EditTaskPage />} />
+          <Route path="/termine/neu" element={<NewEventPage />} />
+          <Route path="/termine/:id" element={<EditEventPage />} />
           <Route path="/einkauf" element={<ShoppingPage />} />
           <Route path="/suche" element={<SearchPage />} />
           <Route path="/einstellungen" element={<SettingsPage />} />

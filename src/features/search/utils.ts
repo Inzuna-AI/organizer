@@ -1,5 +1,7 @@
-// Suche über alle Aufgaben: reine Logik.
-import type { Task } from '@/types/data'
+// Suche über alle Aufgaben und Termine: reine Logik.
+import type { CalEvent, Task } from '@/types/data'
+import { addDays } from '@/lib/dates'
+import { compareInstances, eventsBetween, type EventInstance } from '@/lib/events'
 import type { TaskInstance } from '@/features/tasks'
 
 /** Kleinbuchstaben, ohne Akzente/Umlaut-Punkte, ß → ss: „Küche“ findet man auch mit „kuche“. */
@@ -20,6 +22,34 @@ export function haystack(t: Task, roomName: string | undefined): string {
 export function matches(text: string, query: string): boolean {
   const words = normalize(query).split(/\s+/).filter(Boolean)
   return words.length > 0 && words.every((w) => text.includes(w))
+}
+
+/** Durchsuchbarer Text eines Termins: Titel, Ort, Notiz */
+export function eventHaystack(e: CalEvent): string {
+  return normalize([e.title, e.location, e.note].join('\n'))
+}
+
+/**
+ * Pro Termin ein Treffer: der nächste ab heute, sonst der letzte vergangene.
+ * Nach Beginn sortiert, kommende zuerst.
+ */
+export function searchEvents(events: CalEvent[], query: string, today: string, limit = 50): { upcoming: EventInstance[]; past: EventInstance[] } {
+  const upcoming: EventInstance[] = []
+  const past: EventInstance[] = []
+  for (const e of events) {
+    if (e.deleted || !e.startAt || !matches(eventHaystack(e), query)) continue
+    const next = eventsBetween([e], today, addDays(today, 400))[0]
+    if (next) {
+      upcoming.push(next)
+      continue
+    }
+    const from = e.recurrenceRule ? addDays(today, -400) : e.startAt.slice(0, 10)
+    const last = eventsBetween([e], from, today).at(-1)
+    if (last) past.push(last)
+  }
+  upcoming.sort(compareInstances)
+  past.sort((a, b) => compareInstances(b, a))
+  return { upcoming: upcoming.slice(0, limit), past: past.slice(0, limit) }
 }
 
 export interface SearchResult {

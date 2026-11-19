@@ -96,6 +96,21 @@ describe('SyncEngine', () => {
     expect(repo.writes).toHaveLength(0)
   })
 
+  it('Schema 1 im Repo: erst Sicherung, dann migriert speichern', async () => {
+    const repo = new FakeRepo()
+    const old = { ...withRooms(room('a', 'Küche', T1)), schemaVersion: 1 } as Partial<DataFile>
+    delete old.events
+    repo.files.set('data.json', serializeData(old as DataFile))
+    const before = repo.files.get('data.json')
+    const t = makeEngine(repo, emptyData())
+    await t.engine.sync()
+    expect(repo.writes.map((w) => w.path)).toEqual([expect.stringMatching(/^backups\/data-schema1-\d{4}-\d{2}-\d{2}\.json$/), 'data.json'])
+    expect(repo.files.get(repo.writes[0].path)).toBe(before)
+    expect(repo.data().schemaVersion).toBe(2)
+    expect(repo.data().events).toEqual([])
+    expect(repo.data().rooms.map((r) => r.name)).toEqual(['Küche'])
+  })
+
   it('nutzt den ETag: Ein unveränderter Stand löst keinen Schreibvorgang aus', async () => {
     const repo = new FakeRepo()
     repo.setData(withRooms(room('a', 'Küche', T1)))

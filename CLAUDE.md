@@ -71,7 +71,7 @@ Jeder Datensatz hat `id` (UUID), `updatedAt` (ISO-Zeitstempel), `deleted` (bool)
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "persons": [
     { "id": "…", "name": "Lena", "kuerzel": "LE", "color": "#…" }
   ],
@@ -107,6 +107,20 @@ Jeder Datensatz hat `id` (UUID), `updatedAt` (ISO-Zeitstempel), `deleted` (bool)
       "completedAt": "…",
       "completedBy": "…",
       "assigneeId": null
+    }
+  ],
+  "events": [
+    {
+      "id": "…",
+      "title": "Zahnarzt",
+      "location": "Praxis Dr. Weber",
+      "note": "",
+      "startAt": "2026-11-20T15:00",
+      "endAt": "2026-11-20T16:00",
+      "allDay": false,
+      "personIds": ["…"],
+      "recurrenceRule": null,
+      "exceptions": [ { "date": "2026-11-27", "movedTo": "2026-11-27T17:00", "skipped": false } ]
     }
   ],
   "shoppingLists": [
@@ -152,6 +166,8 @@ Jeder Datensatz hat `id` (UUID), `updatedAt` (ISO-Zeitstempel), `deleted` (bool)
 - `priority`: `low` | `medium` | `high`
 - `recurrenceMode`: `fixed` = fester Rhythmus | `after_completion` = X Tage nach Erledigung
 - Aufgaben ohne `startAt` liegen in der **Inbox**.
+- `events` (Termine, ab `schemaVersion` 2): `startAt` mit Uhrzeit oder ganztägig `JJJJ-MM-TT`. `endAt` mit Uhrzeit (auch an einem späteren Tag) bzw. bei ganztägigen der letzte Tag inklusive; `null` = 60 Minuten bzw. ein Tag. `personIds` leer oder alle Personen = „Familie“. Ausnahmen einer Serie stehen direkt im Termin (`exceptions`, Schlüssel = ursprüngliches Datum), nicht in `occurrences`.
+- `devices[].notify.newEvent`: Nachricht bei neuem oder geändertem Termin, bei dem die Person dabei ist.
 - `devices[].notify.dueReminderMinutesBefore`: 15 / 30 / 60, `-1` = am Morgen des Tages (7 Uhr). `quietHours` kann `null` sein (keine Ruhezeiten).
 - `devices[].testRequestedAt` (optional): Ändert sich der Wert, schickt `notify-on-change` eine Testbenachrichtigung an dieses Gerät.
 - Bei einer Änderung von `schemaVersion` wird beim Laden automatisch migriert (`src/lib/migrations.ts`).
@@ -309,6 +325,7 @@ organizer/
 │   │   ├── today/                 # Heute-Ansicht
 │   │   ├── tasks/                 # Aufgabenliste, Formular, Checklisten, Inbox
 │   │   ├── calendar/              # FullCalendar-Ansichten, Drag and Drop
+│   │   ├── events/                # Termine: Formular, Personen, Serien (/termine/neu, /termine/:id)
 │   │   ├── rooms/                 # Räume verwalten, Farbauswahl
 │   │   ├── shopping/              # Einkaufszettel: Listen, Artikel, Vorschläge
 │   │   ├── search/                # Suche über alle Aufgaben (/suche)
@@ -316,7 +333,7 @@ organizer/
 │   │   ├── notifications/         # Push aktivieren, Einstellungen pro Gerät, Test
 │   │   └── settings/              # Einstellungen, Dark Mode, Sync-Status
 │   ├── components/
-│   │   ├── ui/                    # Button, Modal, Badge, ColorPicker …
+│   │   ├── ui/                    # Button, Modal, Badge, ColorPicker, RecurrenceEditor, FabChoice …
 │   │   └── layout/                # BottomNav, Header, FAB („+“-Button), SyncIndicator
 │   ├── store/                     # Nur Zusammenbau: verbindet die Feature-Stores mit dem Sync (+ initialData.ts)
 │   ├── lib/
@@ -324,6 +341,7 @@ organizer/
 │   │   ├── sync.ts                # Polling, Debounce, Warteschlange, Retry
 │   │   ├── merge.ts               # Zusammenführen lokal/remote (+ merge.test.ts)
 │   │   ├── recurrence.ts          # RRULE, Rotation (+ recurrence.test.ts)
+│   │   ├── events.ts              # Termine: Dauer, Serien auflösen, Verschieben, Familie (+ events.test.ts)
 │   │   ├── migrations.ts          # schemaVersion-Migrationen
 │   │   ├── storage.ts             # localStorage: Token, Gerät, Cache
 │   │   ├── sha1.ts                # Git-Blob-SHA aus dem Dateiinhalt (spart einen API-Abruf, läuft auch ohne HTTPS)

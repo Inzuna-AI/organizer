@@ -3,6 +3,20 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.0.0] – 2026-11-19
+
+### Neu
+- Termine: Der Kalender enthält jetzt Termine und Aufgaben. Termine haben Titel, Ort, Notiz, Beginn und Ende (auch ganztägig und über mehrere Tage) und beteiligte Personen, mit Auswahl „Ganze Familie“
+- Termine wiederholen sich wie Aufgaben (täglich, wöchentlich, monatlich …), beim Ändern „Nur diesen Termin“ oder „Ganze Serie“
+- Unterscheidung im Kalender: Termine vollflächig in der Farbe der Person (mehrere Personen gestreift, alle = 👪 Familie), Aufgaben hell mit farbigem Rand und ☐/☑
+- Tippen auf einen freien Platz oder auf „+“ fragt: Termin oder Aufgabe
+- Heute-Ansicht: „Termine heute“ oben, „Meine“ zeigt nur Termine, bei denen ich dabei bin
+- Suche findet auch Termine (Titel, Ort, Notiz)
+- Push: Nachricht bei neuem oder geändertem Termin, bei dem ich dabei bin (neuer Schalter), Erinnerung vor Terminen, Termine in der täglichen Zusammenfassung
+
+### Geändert
+- Datenformat `schemaVersion` 2 (neuer Bereich `events`). Die Umstellung passiert automatisch beim ersten Öffnen; vorher legt die App eine Sicherung unter `backups/` im Daten-Repo an. Ältere App-Versionen zeigen die Daten danach nur noch zum Lesen.
+
 ## [0.6.0] – 2026-11-19
 
 ### Neu

@@ -1,13 +1,15 @@
 // Nur für Tests: kleine Datensätze bauen.
 import type { DataFile, Room } from '@/types/data'
+import { CURRENT_SCHEMA_VERSION } from './migrations'
 
 export function emptyData(): DataFile {
   return {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     persons: [],
     rooms: [],
     tasks: [],
     occurrences: [],
+    events: [],
     shoppingLists: [],
     shoppingItems: [],
     devices: [],

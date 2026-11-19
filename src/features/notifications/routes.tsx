@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+﻿import { useMemo, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Chip } from '@/components/ui/Chip'
@@ -180,6 +180,12 @@ export function NotificationsPage() {
                 onChange={(v) => set({ changedOrMoved: v })}
               />
               <Toggle
+                label="Neuer oder geänderter Termin"
+                hint="nur Termine, bei denen du dabei bist"
+                checked={n.newEvent ?? true}
+                onChange={(v) => set({ newEvent: v })}
+              />
+              <Toggle
                 label="Neuer Artikel auf dem Einkaufszettel"
                 hint="gebündelt pro Speichern"
                 checked={n.newShoppingItem}
@@ -227,7 +233,7 @@ export function NotificationsPage() {
               <div className="py-1">
                 <Toggle
                   label="Tägliche Zusammenfassung"
-                  hint="„Heute: 4 Aufgaben, 1 überfällig“"
+                  hint="„Heute: 2 Termine, 4 Aufgaben, 1 überfällig“"
                   checked={n.dailySummary}
                   onChange={(v) => set({ dailySummary: v })}
                 />

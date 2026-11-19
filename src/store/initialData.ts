@@ -43,6 +43,7 @@ export function createInitialData(names: string[]): DataFile {
     rooms,
     tasks: [],
     occurrences: [],
+    events: [],
     shoppingLists,
     shoppingItems: [],
     devices: [],

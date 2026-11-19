@@ -4,12 +4,23 @@
 
 import type { DataFile } from '@/types/data'
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 type Migration = (data: Record<string, unknown>) => Record<string, unknown>
 
 /** Schlüssel = Ausgangsversion. Beispiel: 1: (d) => ({ ...d, schemaVersion: 2, neuesFeld: [] }) */
-const MIGRATIONS: Record<number, Migration> = {}
+export const MIGRATIONS: Record<number, Migration> = {
+  // 1 → 2: Termine (events) und die Benachrichtigungs-Einstellung „neuer Termin“
+  1: (d) => ({
+    ...d,
+    events: Array.isArray(d.events) ? d.events : [],
+    devices: (Array.isArray(d.devices) ? d.devices : []).map((dev: { notify?: Record<string, unknown> }) =>
+      dev.notify && typeof dev.notify.newEvent !== 'boolean'
+        ? { ...dev, notify: { ...dev.notify, newEvent: true } }
+        : dev,
+    ),
+  }),
+}
 
 export function schemaOf(data: { schemaVersion?: number }): number {
   return typeof data.schemaVersion === 'number' ? data.schemaVersion : 1

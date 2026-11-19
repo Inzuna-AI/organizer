@@ -1,8 +1,11 @@
-import { useMemo } from 'react'
+﻿import { useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import { useRoomMap } from '@/features/rooms'
 import { instanceKey, TaskItem, useAllTasks, useTaskInstances } from '@/features/tasks'
-import { searchTasks } from './utils'
+import { EventItem, useAllEvents } from '@/features/events'
+import { berlinDateString } from '@/lib/dates'
+import type { EventInstance } from '@/lib/events'
+import { searchEvents, searchTasks } from './utils'
 
 export function SearchPage() {
   const [params, setParams] = useSearchParams()
@@ -12,11 +15,15 @@ export function SearchPage() {
   const instances = useTaskInstances()
   const rooms = useRoomMap()
 
+  const events = useAllEvents()
   const result = useMemo(
     () => searchTasks(tasks, instances, query, (id) => (id ? rooms.get(id)?.name : undefined)),
     [tasks, instances, query, rooms],
   )
-  const total = result.open.length + result.done.length
+  const today = berlinDateString()
+  const evResult = useMemo(() => searchEvents(events, query, today), [events, query, today])
+  const total = result.open.length + result.done.length + evResult.upcoming.length + evResult.past.length
+  const evKey = (i: EventInstance) => (i.date ? `${i.event.id}:${i.date}` : i.event.id)
 
   return (
     <div className="space-y-4 p-4">
@@ -40,7 +47,7 @@ export function SearchPage() {
           autoFocus
           value={query}
           onChange={(e) => setParams(e.target.value ? { q: e.target.value } : {}, { replace: true })}
-          placeholder="Aufgaben durchsuchen …"
+          placeholder="Aufgaben und Termine durchsuchen …"
           aria-label="Suchbegriff"
           enterKeyHint="search"
           className="block min-h-12 w-full rounded-2xl border border-slate-300 bg-white pr-3 pl-10 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
@@ -49,12 +56,22 @@ export function SearchPage() {
 
       {!query.trim() ? (
         <p className="py-8 text-center text-sm text-slate-500">
-          Sucht in Titel, Beschreibung, Checkliste und Raum. Groß-/Kleinschreibung und Umlaute sind egal.
+          Sucht in Aufgaben (Titel, Beschreibung, Checkliste, Raum) und Terminen (Titel, Ort, Notiz). Groß-/Kleinschreibung und Umlaute sind egal.
         </p>
       ) : total === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-500">Keine Aufgabe gefunden.</p>
+        <p className="py-8 text-center text-sm text-slate-500">Nichts gefunden.</p>
       ) : (
         <>
+          {evResult.upcoming.length > 0 && (
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-slate-500">Termine ({evResult.upcoming.length})</h2>
+              <ul className="space-y-2">
+                {evResult.upcoming.map((i) => (
+                  <EventItem key={evKey(i)} instance={i} showDate />
+                ))}
+              </ul>
+            </section>
+          )}
           {result.open.length > 0 && (
             <section>
               <h2 className="mb-2 text-sm font-semibold text-slate-500">Offen ({result.open.length})</h2>
@@ -71,6 +88,16 @@ export function SearchPage() {
               <ul className="space-y-2">
                 {result.done.map((t) => (
                   <TaskItem key={instanceKey(t)} task={t} showDate />
+                ))}
+              </ul>
+            </section>
+          )}
+          {evResult.past.length > 0 && (
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-slate-500">Vergangene Termine ({evResult.past.length})</h2>
+              <ul className="space-y-2 opacity-70">
+                {evResult.past.map((i) => (
+                  <EventItem key={evKey(i)} instance={i} showDate />
                 ))}
               </ul>
             </section>

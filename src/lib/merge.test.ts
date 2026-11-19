@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 import { mergeData, mergeRecords, normalizeData, pickNewer, pruneTombstones } from './merge'
 import { emptyData, room, withRooms } from './testdata'
 
@@ -57,7 +57,7 @@ describe('mergeData', () => {
     const merged = mergeData(local, remote)
     expect(merged.rooms).toHaveLength(2)
     expect(merged.tasks).toEqual([])
-    expect(merged.schemaVersion).toBe(1)
+    expect(merged.schemaVersion).toBe(2)
   })
 })
 
@@ -77,6 +77,6 @@ describe('pruneTombstones', () => {
 describe('normalizeData', () => {
   it('ergänzt fehlende Sammlungen', () => {
     const n = normalizeData({ schemaVersion: 1, rooms: [] })
-    expect(n).toEqual(emptyData())
+    expect(n).toEqual({ ...emptyData(), schemaVersion: 1 })
   })
 })

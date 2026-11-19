@@ -1,7 +1,10 @@
 // Kalender: reine Logik (Aufgabe → Kalendereintrag, Verschieben → neue Zeit).
 import type { Occurrence, Person, Room } from '@/types/data'
 import { expandRange, isFixedSeries, isSeries } from '@/lib/recurrence'
+import { addDays } from '@/lib/dates'
+import { isFamily, type EventInstance } from '@/lib/events'
 import { toTaskInstance, type TaskInstance } from '@/features/tasks'
+import { eventBackground } from '@/features/events'
 
 export type ColorMode = 'room' | 'person'
 export type CalendarView = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay'
@@ -63,6 +66,7 @@ export interface TaskEvent {
   classNames: string[]
   durationEditable?: boolean
   extendedProps: {
+    kind: 'task'
     badges: Array<{ kuerzel: string; color: string }>
     done: boolean
     icon: string
@@ -89,13 +93,15 @@ export function taskToEvent(task: TaskInstance, ctx: EventContext): TaskEvent | 
     start: allDay ? task.startAt.slice(0, 10) : task.startAt,
     end: allDay ? undefined : addMinutes(task.startAt, task.durationMin || DEFAULT_TIMED_MIN),
     allDay,
-    backgroundColor: color,
+    // Aufgaben hell mit farbigem Rand (Termine sind vollflächig, siehe eventsToCalendar)
+    backgroundColor: `${color}2e`,
     borderColor: color,
-    textColor: textColorFor(color),
-    classNames: done ? ['task-done'] : [],
+    textColor: 'var(--color-slate-900)',
+    classNames: done ? ['cal-task', 'task-done'] : ['cal-task'],
     // Die Dauer gilt für die ganze Serie, deshalb Termine nicht einzeln in der Länge ändern
     durationEditable: fixedSeries ? false : undefined,
     extendedProps: {
+      kind: 'task',
       // Im Personen-Modus zeigt die Farbe schon die Person → Badges trotzdem für mehrere Zuständige
       badges: task.assigneeIds
         .map((id) => ctx.persons.get(id))
@@ -134,6 +140,75 @@ export function tasksToEvents(tasks: TaskInstance[], ctx: EventContext, range?: 
     if (e) out.push(e)
   }
   return out
+}
+
+// ---------- Termine ----------
+
+/** Farbe für Termine der ganzen Familie bzw. ohne bestimmte Personen */
+export const FAMILY_COLOR = '#0f766e'
+
+export interface CalEventEntry {
+  id: string
+  title: string
+  start: string
+  end: string
+  allDay: boolean
+  backgroundColor: string
+  borderColor: string
+  textColor: string
+  classNames: string[]
+  durationEditable?: boolean
+  extendedProps: {
+    kind: 'event'
+    eventId: string
+    /** ursprüngliches Datum bei Serien */
+    date: string | null
+    recurring: boolean
+    /** CSS-Hintergrund (Farbe oder Streifen) */
+    background: string
+    striped: boolean
+    family: boolean
+    location: string
+    badges: Array<{ kuerzel: string; color: string }>
+  }
+}
+
+export type CalendarEntry = TaskEvent | CalEventEntry
+
+/** Termine → Kalendereinträge: vollflächig in Personenfarbe, mehrere Personen gestreift, alle = Familie */
+export function eventsToCalendar(list: EventInstance[], persons: Person[]): CalEventEntry[] {
+  return list.map((i) => {
+    const e = i.event
+    const family = e.personIds.length === 0 || isFamily(e.personIds, persons)
+    const involved = family ? [] : persons.filter((p) => !p.deleted && e.personIds.includes(p.id))
+    const colors = involved.map((p) => p.color)
+    const base = family ? FAMILY_COLOR : (colors[0] ?? FALLBACK_COLOR)
+    const striped = colors.length > 1
+    return {
+      id: `ev:${i.date ? `${e.id}:${i.date}` : e.id}`,
+      title: e.title,
+      start: i.startAt,
+      // FullCalendar: Ende ganztägiger Einträge ist exklusiv
+      end: i.allDay ? addDays(i.endAt, 1) : i.endAt,
+      allDay: i.allDay,
+      backgroundColor: base,
+      borderColor: base,
+      textColor: striped ? '#ffffff' : textColorFor(base),
+      classNames: striped ? ['cal-event', 'cal-striped'] : ['cal-event'],
+      durationEditable: i.date ? false : undefined,
+      extendedProps: {
+        kind: 'event',
+        eventId: e.id,
+        date: i.date,
+        recurring: !!e.recurrenceRule,
+        background: striped ? eventBackground(colors) : base,
+        striped,
+        family,
+        location: e.location,
+        badges: involved.map((p) => ({ kuerzel: p.kuerzel, color: p.color })),
+      },
+    }
+  })
 }
 
 export interface MoveChange {

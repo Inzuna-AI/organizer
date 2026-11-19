@@ -64,6 +64,36 @@ export interface Occurrence extends BaseRecord {
   assigneeId: string | null
 }
 
+/** Abweichung eines einzelnen Termins einer Termin-Serie („Nur diesen Termin“) */
+export interface EventException {
+  /** ursprüngliches Datum laut Regel (JJJJ-MM-TT) */
+  date: string
+  /** neuer Beginn im startAt-Format; null = nicht verschoben */
+  movedTo: string | null
+  /** Termin fällt aus */
+  skipped: boolean
+}
+
+/** Termin im Kalender (kein Abhaken, keine Räume) */
+export interface CalEvent extends BaseRecord {
+  title: string
+  location: string
+  note: string
+  /** "2026-11-20T10:00" oder ganztägig "2026-11-20" (lokale Wandzeit) */
+  startAt: string
+  /**
+   * Ende: mit Uhrzeit "2026-11-20T11:30" (auch an einem späteren Tag),
+   * ganztägig der letzte Tag inklusive "2026-11-22"; null = Standarddauer bzw. ein Tag
+   */
+  endAt: string | null
+  allDay: boolean
+  /** Beteiligte Personen; alle = ganze Familie, leer = niemand Bestimmtes */
+  personIds: string[]
+  /** RRULE ohne DTSTART wie bei Aufgaben (Serienstart = startAt), null = einmalig */
+  recurrenceRule: string | null
+  exceptions: EventException[]
+}
+
 export interface ShoppingList extends BaseRecord {
   name: string
   sortOrder: number
@@ -85,6 +115,8 @@ export interface NotifySettings {
   completedByOther: boolean
   changedOrMoved: boolean
   newShoppingItem: boolean
+  /** Neuer oder geänderter Termin, an dem ich beteiligt bin (seit schemaVersion 2) */
+  newEvent: boolean
   onlyMyTasks: boolean
   dueReminder: boolean
   /** 15 / 30 / 60 Minuten vorher, -1 = am Morgen des Tages */
@@ -113,6 +145,7 @@ export interface DataFile {
   rooms: Room[]
   tasks: Task[]
   occurrences: Occurrence[]
+  events: CalEvent[]
   shoppingLists: ShoppingList[]
   shoppingItems: ShoppingItem[]
   devices: Device[]
@@ -124,6 +157,7 @@ export const COLLECTIONS = [
   'rooms',
   'tasks',
   'occurrences',
+  'events',
   'shoppingLists',
   'shoppingItems',
   'devices',

@@ -1,9 +1,12 @@
-// Benachrichtigungen bei Änderungen: alten und neuen Stand von data.json vergleichen.
-import type { DataFile, Device, Occurrence, Task } from '@/types/data'
+﻿// Benachrichtigungen bei Änderungen: alten und neuen Stand von data.json vergleichen.
+import type { CalEvent, DataFile, Device, Occurrence, Task } from '@/types/data'
+import { addDays } from '@/lib/dates'
+import { eventsBetween, involves, type EventInstance } from '@/lib/events'
 import { instanceAt, isSeries } from '@/lib/recurrence'
 import {
   activeDevices,
   currentAssignees,
+  eventUrl,
   isQuiet,
   listTitles,
   personName,
@@ -14,7 +17,7 @@ import {
 } from './common'
 import { berlinParts } from './time'
 
-export type ChangeKind = 'newTask' | 'assigned' | 'completed' | 'changed' | 'newShoppingItem'
+export type ChangeKind = 'newTask' | 'assigned' | 'completed' | 'changed' | 'newShoppingItem' | 'newEvent' | 'changedEvent'
 
 export interface ChangeEvent {
   kind: ChangeKind
@@ -22,6 +25,8 @@ export interface ChangeEvent {
   by: string | null
   title: string
   taskId: string | null
+  /** bei Terminen (newEvent, changedEvent) */
+  eventId?: string
   /** Termin einer Serie (ursprüngliches Datum) */
   date: string | null
   roomId: string | null
@@ -35,6 +40,14 @@ export interface ChangeEvent {
 
 /** Felder, deren Änderung als „geändert oder verschoben“ zählt (Checklisten-Haken nicht) */
 const WATCHED = ['title', 'description', 'startAt', 'allDay', 'durationMin', 'roomId', 'priority', 'recurrenceRule', 'recurrenceMode'] as const
+
+/** Termin-Felder, deren Änderung gemeldet wird */
+const EVENT_WATCHED = ['title', 'location', 'startAt', 'endAt', 'allDay', 'personIds', 'recurrenceRule', 'exceptions'] as const
+
+/** Nächstes Vorkommen ab heute (bei vergangenen einmaligen Terminen der Termin selbst) */
+function nextEventInstance(e: CalEvent, today: string): EventInstance | null {
+  return eventsBetween([e], today, addDays(today, 400))[0] ?? eventsBetween([e], e.startAt.slice(0, 10), e.startAt.slice(0, 10))[0] ?? null
+}
 
 function whenOf(t: Task, occurrences: Occurrence[], date: string | null, today: string): string | undefined {
   if (isSeries(t) && date) {
@@ -134,6 +147,23 @@ export function detectChanges(prev: DataFile, next: DataFile, today: string): Ch
     }
   }
 
+  // Termine: neu angelegt oder geändert (Personen = Beteiligte)
+  const prevEvents = new Map((prev.events ?? []).map((e) => [e.id, e]))
+  for (const e of next.events ?? []) {
+    if (e.deleted) continue
+    const p = prevEvents.get(e.id)
+    const base = { title: e.title, taskId: null, eventId: e.id, roomId: null, assigneeIds: e.personIds }
+    const next1 = nextEventInstance(e, today)
+    const when = next1 ? slotLabel(next1.startAt, next1.allDay, today) : undefined
+    const date = next1?.date ?? null
+    if (!p || p.deleted) {
+      events.push({ kind: 'newEvent', by: e.updatedBy ?? e.createdBy, ...base, date, when })
+    } else if (p.updatedAt !== e.updatedAt && EVENT_WATCHED.some((k) => JSON.stringify(p[k]) !== JSON.stringify(e[k]))) {
+      // Neu dazugekommene Personen sollen es auch dann erfahren, wenn sie vorher nicht beteiligt waren
+      events.push({ kind: 'changedEvent', by: e.updatedBy, ...base, date, when })
+    }
+  }
+
   const prevItems = new Map(prev.shoppingItems.map((i) => [i.id, i]))
   for (const i of next.shoppingItems) {
     if (i.deleted || i.checked) continue
@@ -154,7 +184,7 @@ function dedupe(events: ChangeEvent[]): ChangeEvent[] {
     // Abhaken bei „nach Erledigung“ verschiebt auch den Termin – das ist keine eigene Änderung
     if (e.kind === 'changed' && completed.has(e.taskId)) return false
     if (e.kind === 'newShoppingItem') return true
-    const key = `${e.kind}|${e.taskId}|${e.kind === 'completed' ? e.date : ''}|${e.assignee ?? ''}`
+    const key = `${e.kind}|${e.taskId ?? e.eventId}|${e.kind === 'completed' ? e.date : ''}|${e.assignee ?? ''}`
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -179,6 +209,10 @@ export function eventsForDevice(device: Device, events: ChangeEvent[]): ChangeEv
         return n.completedByOther && relevant(device, e.roomId, e.assigneeIds)
       case 'changed':
         return n.changedOrMoved && relevant(device, e.roomId, e.assigneeIds)
+      case 'newEvent':
+      case 'changedEvent':
+        // Nur Termine, bei denen ich dabei bin (ohne Personen = alle); Raumfilter gilt hier nicht
+        return (n.newEvent ?? true) && involves({ personIds: e.assigneeIds }, me)
     }
   })
   // „Dir zugewiesen“ sagt mehr als „Neue Aufgabe“ – nicht beides für dieselbe Aufgabe
@@ -192,6 +226,15 @@ const PLURAL: Record<ChangeKind, (n: number) => string> = {
   completed: (n) => `${n} erledigt`,
   changed: (n) => `${n} geändert`,
   newShoppingItem: (n) => (n === 1 ? '1 Einkaufsartikel' : `${n} Einkaufsartikel`),
+  newEvent: (n) => (n === 1 ? '1 neuer Termin' : `${n} neue Termine`),
+  changedEvent: (n) => (n === 1 ? '1 Termin geändert' : `${n} Termine geändert`),
+}
+
+/** Link zu einer Aufgabe oder einem Termin */
+function targetUrl(e: ChangeEvent): string | null {
+  if (e.taskId) return taskUrl(e.taskId, e.date)
+  if (e.eventId) return eventUrl(e.eventId, e.date)
+  return null
 }
 
 /** Alle Ereignisse eines Commits zu einer Nachricht zusammenfassen */
@@ -202,11 +245,11 @@ export function composeMessage(events: ChangeEvent[], data: DataFile): PushPaylo
   const who = actor ?? 'Mehrere'
   const kinds = [...new Set(events.map((e) => e.kind))]
   const onlyShopping = kinds.length === 1 && kinds[0] === 'newShoppingItem'
-  const taskIds = [...new Set(events.map((e) => e.taskId).filter(Boolean))]
+  const targets = [...new Set(events.map((e) => e.taskId ?? e.eventId).filter(Boolean))]
   const url = onlyShopping
     ? '#/einkauf'
-    : taskIds.length === 1 && kinds.every((k) => k !== 'newShoppingItem')
-      ? taskUrl(taskIds[0]!, events.find((e) => e.taskId)?.date ?? null)
+    : targets.length === 1 && kinds.every((k) => k !== 'newShoppingItem')
+      ? (targetUrl(events.find((e) => e.taskId ?? e.eventId)!) ?? '#/')
       : '#/'
 
   if (events.length === 1) {
@@ -223,6 +266,10 @@ export function composeMessage(events: ChangeEvent[], data: DataFile): PushPaylo
         return { title: `${who} hat eine Aufgabe geändert`, body: withWhen, url }
       case 'newShoppingItem':
         return { title: 'Einkaufszettel', body: `${who} hat ${e.title} hinzugefügt`, url }
+      case 'newEvent':
+        return { title: `Neuer Termin von ${who}`, body: withWhen, url }
+      case 'changedEvent':
+        return { title: `${who} hat einen Termin geändert`, body: withWhen, url }
     }
   }
 
@@ -240,6 +287,10 @@ export function composeMessage(events: ChangeEvent[], data: DataFile): PushPaylo
         return { title: `${who} hat ${n} Aufgaben geändert`, body: titles, url }
       case 'newShoppingItem':
         return { title: `${who} hat ${n} Artikel hinzugefügt`, body: titles, url }
+      case 'newEvent':
+        return { title: `${who} hat ${n} neue Termine angelegt`, body: titles, url }
+      case 'changedEvent':
+        return { title: `${who} hat ${n} Termine geändert`, body: titles, url }
     }
   }
 

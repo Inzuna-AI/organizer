@@ -9,7 +9,7 @@ import { useRooms } from '@/features/rooms'
 import { berlinDateString } from '@/lib/dates'
 import { buildRule, parseRule } from '@/lib/recurrence'
 import { ChecklistEditor } from './ChecklistEditor'
-import { RecurrenceEditor, type RecurrenceValue } from './RecurrenceEditor'
+import { RecurrenceEditor, type RecurrenceValue } from '@/components/ui/RecurrenceEditor'
 import {
   buildStartAt,
   DURATION_OPTIONS,

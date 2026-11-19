@@ -8,20 +8,24 @@ import deLocale from '@fullcalendar/core/locales/de'
 import type { DatesSetArg, DayHeaderContentArg, EventClickArg, EventDropArg } from '@fullcalendar/core'
 import type { EventResizeDoneArg } from '@fullcalendar/interaction'
 import { loadPref, savePref } from '@/lib/storage'
-import { usePersonMap } from '@/features/persons'
+import { addDays } from '@/lib/dates'
+import { usePersonMap, usePersons } from '@/features/persons'
 import { useRoomMap } from '@/features/rooms'
 import { ChoiceDialog } from '@/components/ui/ChoiceDialog'
+import { FabChoice } from '@/components/ui/FabChoice'
 import { isInbox, taskActions, useAllTasks, useOccurrences, type TaskInstance } from '@/features/tasks'
+import { eventActions, useEventsBetween } from '@/features/events'
 import { EventContent } from './components/EventContent'
 import { InboxStrip } from './components/InboxStrip'
 import {
   eventColor,
+  eventsToCalendar,
   moveChange,
   tasksToEvents,
   toLocalString,
+  type CalendarEntry,
   type CalendarView,
   type ColorMode,
-  type TaskEvent,
 } from './utils'
 import './calendar.css'
 
@@ -39,11 +43,14 @@ const COLOR_MODES: Array<{ key: ColorMode; label: string }> = [
 type Scope = 'one' | 'series'
 
 interface PendingMove {
-  taskId: string
+  kind: 'task' | 'event'
+  id: string
   date: string
   startAt: string
   revert: () => void
 }
+
+type NewKind = 'event' | 'task'
 
 const LONG_PRESS_MS = 350
 const SCROLL_TIME = '07:00:00'
@@ -61,11 +68,15 @@ export function CalendarPage() {
   const [title, setTitle] = useState('')
   const [range, setRange] = useState<{ from: string; to: string } | null>(null)
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null)
+  /** Angetippter freier Platz: Termin oder Aufgabe anlegen? */
+  const [pendingNew, setPendingNew] = useState<URLSearchParams | null>(null)
+  const personList = usePersons()
 
   const ctx = useMemo(() => ({ mode, rooms, persons }), [mode, rooms, persons])
-  const events = useMemo(
-    () => (range ? tasksToEvents(tasks, ctx, { occurrences, ...range }) : []),
-    [tasks, ctx, occurrences, range],
+  const calEvents = useEventsBetween(range?.from ?? '', range?.to ?? '')
+  const events = useMemo<CalendarEntry[]>(
+    () => (range ? [...eventsToCalendar(calEvents, personList), ...tasksToEvents(tasks, ctx, { occurrences, ...range })] : []),
+    [tasks, ctx, occurrences, range, calEvents, personList],
   )
   const inbox = useMemo(() => tasks.filter((t) => !t.deleted && t.status === 'open' && isInbox(t)), [tasks])
 
@@ -95,21 +106,46 @@ export function CalendarPage() {
     const date = toLocalString(arg.date, true)
     const q = new URLSearchParams({ datum: date })
     if (!arg.allDay) q.set('uhrzeit', toLocalString(arg.date, false).slice(11))
-    navigate(`/aufgaben/neu?${q}`)
+    setPendingNew(q)
+  }
+
+  function onNewKind(kind: NewKind | null) {
+    const q = pendingNew
+    setPendingNew(null)
+    if (kind && q) navigate(`/${kind === 'event' ? 'termine' : 'aufgaben'}/neu?${q}`)
   }
 
   function onEventClick(arg: EventClickArg) {
     arg.jsEvent.preventDefault()
-    const p = arg.event.extendedProps as TaskEvent['extendedProps']
+    const p = arg.event.extendedProps as CalendarEntry['extendedProps']
+    if (p.kind === 'event') {
+      navigate(p.date ? `/termine/${p.eventId}?datum=${p.date}` : `/termine/${p.eventId}`)
+      return
+    }
     navigate(p.occurrenceDate ? `/aufgaben/${p.taskId}?datum=${p.occurrenceDate}` : `/aufgaben/${p.taskId}`)
+  }
+
+  /** Neues Ende eines Termins aus FullCalendar (ganztägig: Ende exklusiv → letzter Tag) */
+  function eventEnd(end: Date | null, allDay: boolean): string | null {
+    if (!end) return null
+    return allDay ? addDays(toLocalString(end, true), -1) : toLocalString(end, false)
   }
 
   function onEventDrop(arg: EventDropArg) {
     if (!arg.event.start) return arg.revert()
-    const p = arg.event.extendedProps as TaskEvent['extendedProps']
+    const p = arg.event.extendedProps as CalendarEntry['extendedProps']
     const change = moveChange(arg.event.start, arg.event.allDay, arg.event.end)
+    if (p.kind === 'event') {
+      if (p.date) {
+        setPendingMove({ kind: 'event', id: p.eventId, date: p.date, startAt: change.startAt, revert: arg.revert })
+        return
+      }
+      // Wechsel ganztägig ↔ Uhrzeit: Standardlänge; sonst Länge behalten
+      eventActions.move(p.eventId, change.startAt)
+      return
+    }
     if (p.fixedSeries && p.occurrenceDate) {
-      setPendingMove({ taskId: p.taskId, date: p.occurrenceDate, startAt: change.startAt, revert: arg.revert })
+      setPendingMove({ kind: 'task', id: p.taskId, date: p.occurrenceDate, startAt: change.startAt, revert: arg.revert })
       return
     }
     taskActions.save(p.taskId, change)
@@ -119,14 +155,24 @@ export function CalendarPage() {
     const m = pendingMove
     setPendingMove(null)
     if (!m) return
-    if (scope === 'one') taskActions.saveInstance(m.taskId, m.date, { startAt: m.startAt })
-    else if (scope === 'series') taskActions.moveSeries(m.taskId, m.date, m.startAt)
-    else m.revert()
+    if (!scope) return m.revert()
+    if (m.kind === 'event') {
+      if (scope === 'one') eventActions.moveInstance(m.id, m.date, m.startAt)
+      else eventActions.moveSeries(m.id, m.date, m.startAt)
+      return
+    }
+    if (scope === 'one') taskActions.saveInstance(m.id, m.date, { startAt: m.startAt })
+    else taskActions.moveSeries(m.id, m.date, m.startAt)
   }
 
   function onEventResize(arg: EventResizeDoneArg) {
     if (!arg.event.start) return arg.revert()
-    const p = arg.event.extendedProps as TaskEvent['extendedProps']
+    const p = arg.event.extendedProps as CalendarEntry['extendedProps']
+    if (p.kind === 'event') {
+      const start = toLocalString(arg.event.start, arg.event.allDay)
+      eventActions.move(p.eventId, start, eventEnd(arg.event.end, arg.event.allDay))
+      return
+    }
     taskActions.save(p.taskId, moveChange(arg.event.start, arg.event.allDay, arg.event.end, true))
   }
 
@@ -205,13 +251,40 @@ export function CalendarPage() {
           eventReceive={onEventReceive}
         />
       </div>
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-5 rounded-[3px] bg-brand-700" aria-hidden="true" /> Termin
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-5 rounded-[3px] border border-l-4 border-brand-700 bg-brand-50" aria-hidden="true" /> ☐ Aufgabe
+        </span>
+      </div>
       <p className="text-center text-xs text-slate-400">
-        Tippen auf einen freien Platz legt eine Aufgabe an. Zum Verschieben einen Eintrag lange drücken und ziehen.
+        Tippen auf einen freien Platz legt einen Termin oder eine Aufgabe an. Zum Verschieben einen Eintrag lange
+        drücken und ziehen.
       </p>
+
+      <FabChoice
+        label="Neuer Termin oder neue Aufgabe"
+        options={[
+          { label: '📅 Termin', to: '/termine/neu' },
+          { label: '☐ Aufgabe', to: '/aufgaben/neu' },
+        ]}
+      />
+
+      <ChoiceDialog<NewKind>
+        open={!!pendingNew}
+        title="Was möchtest du anlegen?"
+        choices={[
+          { value: 'event', label: '📅 Termin' },
+          { value: 'task', label: '☐ Aufgabe' },
+        ]}
+        onChoose={onNewKind}
+      />
 
       <ChoiceDialog<Scope>
         open={!!pendingMove}
-        title="Wiederkehrenden Termin verschieben"
+        title="Wiederkehrenden Eintrag verschieben"
         message="Nur diesen Termin verschieben oder die ganze Serie?"
         choices={[
           { value: 'one', label: 'Nur diesen Termin' },

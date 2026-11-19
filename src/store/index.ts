@@ -11,7 +11,7 @@ import {
   type RepoConfig,
 } from '@/lib/github'
 import { normalizeData, serializeData } from '@/lib/merge'
-import { isTooNew } from '@/lib/migrations'
+import { isTooNew, migrate, needsMigration } from '@/lib/migrations'
 import * as storage from '@/lib/storage'
 import { DATA_PATH, SyncEngine, type SyncState } from '@/lib/sync'
 import { createInitialData, createPersons } from './initialData'
@@ -45,10 +45,21 @@ export interface AppState {
 
 const initialSync: SyncState = { status: 'idle', dirty: false, lastSyncAt: null, error: null }
 
+/**
+ * Lokaler Cache von einer älteren App-Version: im Speicher migrieren und den ETag verwerfen,
+ * damit der nächste Sync frisch liest und das Daten-Repo (mit Sicherung) ebenfalls migriert.
+ */
+export function upgradeCache(cache: storage.CacheState): storage.CacheState {
+  const data = normalizeData(cache.data)
+  if (isTooNew(data) || !needsMigration(data)) return data === cache.data ? cache : { ...cache, data }
+  return { ...cache, data: migrate(data), etag: null }
+}
+
 let engine: SyncEngine | null = null
 
 export const useAppStore = create<AppState>()((set, get) => {
-  function startEngine(config: RepoConfig, device: storage.DeviceInfo, cache: storage.CacheState) {
+  function startEngine(config: RepoConfig, device: storage.DeviceInfo, stored: storage.CacheState) {
+    const cache = upgradeCache(stored)
     engine?.stop()
     engine = new SyncEngine({
       config,

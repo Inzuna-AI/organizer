@@ -54,6 +54,10 @@ export function taskUrl(taskId: string, date: string | null): string {
   return date ? `#/aufgaben/${taskId}?datum=${date}` : `#/aufgaben/${taskId}`
 }
 
+export function eventUrl(eventId: string, date: string | null): string {
+  return date ? `#/termine/${eventId}?datum=${date}` : `#/termine/${eventId}`
+}
+
 /** Termine aller Aufgaben im Zeitraum [from, to] (nach tatsächlichem Datum) */
 export function slotsBetween(data: DataFile, from: string, to: string): Slot[] {
   const out: Slot[] = []

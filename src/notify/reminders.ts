@@ -1,8 +1,10 @@
 // Erinnerungen vor Fälligkeit und tägliche Zusammenfassung (Workflow „reminders“, stündlich).
 import type { DataFile, Device } from '@/types/data'
 import { addDays } from '@/lib/dates'
+import { eventsBetween, involves } from '@/lib/events'
 import {
   activeDevices,
+  eventUrl,
   isQuiet,
   listTitles,
   overdueSlots,
@@ -53,12 +55,25 @@ export function dueReminder(
   const morning = minutes >= minutesOf(MORNING) && minutes < 12 * 60
   const nowMs = now.getTime()
 
-  const due: Slot[] = []
-  for (const s of slotsBetween(data, today, addDays(today, 1)).filter(mine(device))) {
-    if (state.sent[reminderKey(device, s)]) continue
+  const candidates: DueItem[] = [
+    ...myEvents(data, device, today, addDays(today, 1)),
+    ...slotsBetween(data, today, addDays(today, 1))
+      .filter(mine(device))
+      .map((s) => ({
+        kind: 'task' as const,
+        key: reminderKey(device, s),
+        title: s.task.title,
+        startAt: s.startAt,
+        allDay: s.allDay,
+        url: taskUrl(s.task.id, s.date),
+      })),
+  ]
+  const due: DueItem[] = []
+  for (const s of candidates) {
+    if (state.sent[s.key]) continue
     const day = s.startAt.slice(0, 10)
     if (s.allDay || n.dueReminderMinutesBefore < 0) {
-      // Ganztägig oder „am Morgen des Tages“: morgens für die Aufgaben von heute
+      // Ganztägig oder „am Morgen des Tages“: morgens für die Einträge von heute
       const notStarted = s.allDay || berlinWallToDate(s.startAt).getTime() > nowMs
       if (day === today && morning && notStarted) due.push(s)
     } else {
@@ -70,22 +85,44 @@ export function dueReminder(
   if (due.length === 0) return null
 
   due.sort((a, b) => a.startAt.localeCompare(b.startAt))
-  const keys = due.map((s) => reminderKey(device, s))
+  const keys = due.map((s) => s.key)
   if (due.length === 1) {
     const s = due[0]
     return {
-      payload: {
-        title: 'Erinnerung',
-        body: `${s.task.title} · ${slotLabel(s.startAt, s.allDay, today)}`,
-        url: taskUrl(s.task.id, s.date),
-      },
+      payload: { title: 'Erinnerung', body: `${s.title} · ${slotLabel(s.startAt, s.allDay, today)}`, url: s.url },
       keys,
     }
   }
+  const kinds = new Set(due.map((s) => s.kind))
+  const what = kinds.size > 1 ? 'Einträge' : kinds.has('event') ? 'Termine' : 'Aufgaben'
   return {
-    payload: { title: `Erinnerung: ${due.length} Aufgaben`, body: listTitles(due.map((s) => s.task.title), 4), url: '#/' },
+    payload: { title: `Erinnerung: ${due.length} ${what}`, body: listTitles(due.map((s) => s.title), 4), url: '#/' },
     keys,
   }
+}
+
+/** Aufgabe oder Termin, an den erinnert werden kann */
+interface DueItem {
+  kind: 'task' | 'event'
+  key: string
+  title: string
+  startAt: string
+  allDay: boolean
+  url: string
+}
+
+/** Termine, bei denen die Person des Geräts dabei ist (ohne Personen = alle), die im Zeitraum beginnen */
+function myEvents(data: DataFile, device: Device, from: string, to: string): DueItem[] {
+  return eventsBetween(data.events ?? [], from, to)
+    .filter((i) => i.startAt.slice(0, 10) >= from && involves(i.event, device.personId))
+    .map((i) => ({
+      kind: 'event' as const,
+      key: `r|${device.id}|ev:${i.event.id}|${i.startAt}`,
+      title: i.event.title,
+      startAt: i.startAt,
+      allDay: i.allDay,
+      url: eventUrl(i.event.id, i.date),
+    }))
 }
 
 /**
@@ -108,11 +145,16 @@ export function dailySummary(
 
   const todays = slotsBetween(data, today, today).filter(mine(device))
   const overdue = overdueSlots(data, today).filter(mine(device))
-  if (todays.length === 0 && overdue.length === 0) return { payload: null }
+  // Auch mehrtägige Termine, die heute noch laufen
+  const events = eventsBetween(data.events ?? [], today, today).filter((i) => involves(i.event, device.personId))
+  if (todays.length === 0 && overdue.length === 0 && events.length === 0) return { payload: null }
 
-  const parts = [`Heute: ${todays.length === 1 ? '1 Aufgabe' : `${todays.length} Aufgaben`}`]
+  const counts: string[] = []
+  if (events.length > 0) counts.push(events.length === 1 ? '1 Termin' : `${events.length} Termine`)
+  if (todays.length > 0 || events.length === 0) counts.push(todays.length === 1 ? '1 Aufgabe' : `${todays.length} Aufgaben`)
+  const parts = [`Heute: ${counts.join(', ')}`]
   if (overdue.length > 0) parts.push(`${overdue.length} überfällig`)
-  const titles = listTitles([...overdue, ...todays].map((s) => s.task.title), 4)
+  const titles = listTitles([...events.map((i) => i.event.title), ...[...overdue, ...todays].map((s) => s.task.title)], 4)
   return { payload: { title: 'Dein Tag', body: `${parts.join(', ')}\n${titles}`, url: '#/', tag: 'summary' } }
 }
 

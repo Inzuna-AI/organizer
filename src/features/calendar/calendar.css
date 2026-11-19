@@ -64,6 +64,24 @@
   opacity: 0.5;
 }
 
+/* Aufgaben: hell mit farbigem Rand, links dicker (Termine sind vollflächig) */
+.organizer-calendar .fc-event.cal-task {
+  border-width: 1px 1px 1px 4px;
+  border-style: solid;
+}
+.organizer-calendar .fc-event.cal-task.fc-daygrid-dot-event,
+.organizer-calendar .fc-event.cal-task .fc-event-main {
+  color: var(--color-slate-900);
+}
+
+/* Termine: kräftiger, mit leichtem Schatten */
+.organizer-calendar .fc-event.cal-event {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.25);
+}
+.organizer-calendar .fc-event.cal-striped .fc-event-main {
+  padding: 0;
+}
+
 /* Beim Ziehen hervorheben */
 .organizer-calendar .fc-event-dragging,
 .organizer-calendar .fc-event-mirror {
