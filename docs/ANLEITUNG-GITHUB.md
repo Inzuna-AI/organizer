@@ -94,7 +94,7 @@ Wenn alles passt, sag Claude Bescheid („Phase 1 ist freigegeben“). Dann geht
 2. Ausfüllen:
    | Feld | Eintrag |
    |---|---|
-   | **Repository name** | `organizer` (genau so, sonst stimmt die Adresse der App nicht) |
+   | **Repository name** | `organizer`, genau so und **klein geschrieben**. Die Adresse der App unterscheidet Groß- und Kleinschreibung, mit `Organizer` bleibt die App weiß. |
    | Sichtbarkeit | **Public** |
    | **Add a README file** | **ausschalten** ⚠️ wichtig: Das Repo muss leer sein |
    | .gitignore / License | „None“ |
