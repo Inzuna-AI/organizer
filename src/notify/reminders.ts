@@ -28,15 +28,13 @@ export interface NotifyState {
 
 export const emptyState = (): NotifyState => ({ sent: {}, summaries: {} })
 
-/** Erinnerungen „am Morgen“ und für ganztägige Einträge ab dieser Uhrzeit (bis Mittag des Tages) */
-export const MORNING = '07:00'
-/** Vor dieser Uhrzeit wird nichts verschickt; nachts Fälliges kommt mit dem ersten Lauf ab 6 Uhr */
+/** Vor dieser Uhrzeit wird nichts verschickt (auch bei manuellem Start) */
 export const ACTIVE_FROM = '06:00'
 /** Der Workflow läuft alle 30 Minuten: bis zu 15 Minuten früher erinnern … */
 const EARLY_MS = 15 * 60_000
-/** … oder bis zu 30 Minuten später, falls GitHub den Lauf verzögert (aber nicht nach Beginn, außer „zum Zeitpunkt“) */
+/** … oder bis zu 30 Minuten später, falls GitHub den Lauf verzögert */
 const LATE_MS = 30 * 60_000
-/** So weit voraus werden Einträge betrachtet (längste Vorlaufzeit: 1 Woche bzw. „1 Tag vorher“) */
+/** So weit voraus werden Einträge betrachtet (längste Vorlaufzeit: 1 Woche) */
 const MAX_DAYS_BEFORE = 7
 /** Zusammenfassung höchstens so lange nach der Wunschzeit nachholen (verspätete Läufe) */
 const SUMMARY_WINDOW_MIN = 180
@@ -73,7 +71,6 @@ export function dueReminder(
         startAt: s.startAt,
         allDay: s.allDay,
         url: taskUrl(s.task.id, s.date),
-        reminderMin: s.task.reminderMin,
         reminderTimes: s.task.reminderTimes,
       })),
   ]
@@ -83,7 +80,6 @@ export function dueReminder(
   for (const s of candidates) {
     // Pro Eintrag höchstens einmal in der Nachricht, auch wenn mehrere Erinnerungen gleichzeitig fällig sind
     const itemKeys: string[] = []
-    if (!state.sent[s.key] && hit(reminderWindow(s, n.dueReminderMinutesBefore))) itemKeys.push(s.key)
     for (const code of s.reminderTimes ?? []) {
       const k = `${s.key}|${code}`
       if (!state.sent[k] && hit(fixedReminderWindow(s.startAt, code))) itemKeys.push(k)
@@ -119,9 +115,7 @@ interface DueItem {
   startAt: string
   allDay: boolean
   url: string
-  /** Erinnerung des Eintrags; undefined = Standard des Geräts */
-  reminderMin?: number | null
-  /** Feste Uhrzeiten ("-1@15:00" …) */
+  /** Feste Uhrzeiten ("-1@15:00" …); ohne = keine Erinnerung */
   reminderTimes?: string[]
 }
 
@@ -136,31 +130,6 @@ export function fixedReminderWindow(startAt: string, code: string): { from: numb
   return { from: at - EARLY_MS, until: at + LATE_MS }
 }
 
-/**
- * Zeitraum [from, until) in ms, in dem ein Lauf die Erinnerung verschickt; null = keine Erinnerung.
- * deviceDefault gilt für Einträge ohne eigene Erinnerung (-1 = am Morgen des Tages).
- */
-export function reminderWindow(
-  item: { startAt: string; allDay: boolean; reminderMin?: number | null },
-  deviceDefault: number,
-): { from: number; until: number } | null {
-  const min = item.reminderMin === undefined ? deviceDefault : item.reminderMin
-  if (min === null) return null
-  const day = item.startAt.slice(0, 10)
-  const allDay = item.allDay || item.startAt.length < 16
-  if (allDay || min < 0) {
-    // Am Morgen des Tages bzw. so viele Tage vorher, bis Mittag des Tages
-    const days = min >= 1440 ? Math.floor(min / 1440) : 0
-    const from = berlinWallToDate(`${addDays(day, -days)}T${MORNING}`).getTime()
-    let until = berlinWallToDate(`${day}T12:00`).getTime()
-    if (!allDay) until = Math.min(until, berlinWallToDate(item.startAt).getTime())
-    return { from, until }
-  }
-  const start = berlinWallToDate(item.startAt).getTime()
-  const remindAt = start - min * 60_000
-  return { from: remindAt - EARLY_MS, until: Math.max(start, remindAt + LATE_MS) }
-}
-
 /** Termine, bei denen die Person des Geräts dabei ist (ohne Personen = alle), die im Zeitraum beginnen */
 function myEvents(data: DataFile, device: Device, from: string, to: string): DueItem[] {
   return eventsBetween(data.events ?? [], from, to)
@@ -172,7 +141,6 @@ function myEvents(data: DataFile, device: Device, from: string, to: string): Due
       startAt: i.startAt,
       allDay: i.allDay,
       url: eventUrl(i.event.id, i.date),
-      reminderMin: i.event.reminderMin,
       reminderTimes: i.event.reminderTimes,
     }))
 }

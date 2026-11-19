@@ -6,7 +6,7 @@ import { TextareaField } from '@/components/ui/Field'
 import { TextField } from '@/components/ui/TextField'
 import { RecurrenceEditor, type RecurrenceValue } from '@/components/ui/RecurrenceEditor'
 import { ReminderField } from '@/components/ui/ReminderField'
-import { normalizeFixedReminders, normalizeReminder, type ReminderMin } from '@/lib/reminders'
+import { normalizeFixedReminders } from '@/lib/reminders'
 import { PersonBadge, usePersons } from '@/features/persons'
 import { endFor } from '@/lib/events'
 import { buildRule, parseRule } from '@/lib/recurrence'
@@ -42,7 +42,6 @@ export function EventForm({ initial, instanceStart, defaults, seriesDate, submit
     mode: 'fixed',
     rotation: false,
   }))
-  const [reminderMin, setReminderMin] = useState<ReminderMin>(initial?.reminderMin)
   const [reminderTimes, setReminderTimes] = useState<string[]>(initial?.reminderTimes ?? [])
   const ruleDate = seriesDate ?? times.startDate
   const parsed = fromFormValues(times)
@@ -69,7 +68,6 @@ export function EventForm({ initial, instanceStart, defaults, seriesDate, submit
       ...parsed,
       personIds,
       recurrenceRule: recurrence.spec ? buildRule(recurrence.spec, ruleDate || times.startDate, 'fixed') : null,
-      reminderMin: normalizeReminder(reminderMin, parsed.allDay),
       reminderTimes: normalizeFixedReminders(reminderTimes),
     })
   }
@@ -142,13 +140,7 @@ export function EventForm({ initial, instanceStart, defaults, seriesDate, submit
               Das Ende liegt vor dem Beginn.
             </p>
           )}
-          <ReminderField
-            value={reminderMin}
-            onChange={setReminderMin}
-            fixed={reminderTimes}
-            onFixedChange={setReminderTimes}
-            allDay={times.allDay}
-          />
+          <ReminderField value={reminderTimes} onChange={setReminderTimes} />
 
         </div>
       </Card>

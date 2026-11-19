@@ -4025,7 +4025,6 @@ function parseFixedReminder(code) {
 
 // src/notify/reminders.ts
 var emptyState = () => ({ sent: {}, summaries: {} });
-var MORNING = "07:00";
 var ACTIVE_FROM = "06:00";
 var EARLY_MS = 15 * 6e4;
 var LATE_MS = 30 * 6e4;
@@ -4050,7 +4049,6 @@ function dueReminder(data, device, now, state) {
       startAt: s.startAt,
       allDay: s.allDay,
       url: taskUrl(s.task.id, s.date),
-      reminderMin: s.task.reminderMin,
       reminderTimes: s.task.reminderTimes
     }))
   ];
@@ -4059,7 +4057,6 @@ function dueReminder(data, device, now, state) {
   const keys = [];
   for (const s of candidates) {
     const itemKeys = [];
-    if (!state.sent[s.key] && hit(reminderWindow(s, n.dueReminderMinutesBefore))) itemKeys.push(s.key);
     for (const code of s.reminderTimes ?? []) {
       const k = `${s.key}|${code}`;
       if (!state.sent[k] && hit(fixedReminderWindow(s.startAt, code))) itemKeys.push(k);
@@ -4091,22 +4088,6 @@ function fixedReminderWindow(startAt, code) {
   const at = berlinWallToDate(`${addDays(startAt.slice(0, 10), p.days)}T${p.time}`).getTime();
   return { from: at - EARLY_MS, until: at + LATE_MS };
 }
-function reminderWindow(item, deviceDefault) {
-  const min = item.reminderMin === void 0 ? deviceDefault : item.reminderMin;
-  if (min === null) return null;
-  const day = item.startAt.slice(0, 10);
-  const allDay = item.allDay || item.startAt.length < 16;
-  if (allDay || min < 0) {
-    const days = min >= 1440 ? Math.floor(min / 1440) : 0;
-    const from = berlinWallToDate(`${addDays(day, -days)}T${MORNING}`).getTime();
-    let until = berlinWallToDate(`${day}T12:00`).getTime();
-    if (!allDay) until = Math.min(until, berlinWallToDate(item.startAt).getTime());
-    return { from, until };
-  }
-  const start = berlinWallToDate(item.startAt).getTime();
-  const remindAt = start - min * 6e4;
-  return { from: remindAt - EARLY_MS, until: Math.max(start, remindAt + LATE_MS) };
-}
 function myEvents(data, device, from, to) {
   return eventsBetween(data.events ?? [], from, to).filter((i) => i.startAt.slice(0, 10) >= from && involves(i.event, device.personId)).map((i) => ({
     kind: "event",
@@ -4115,7 +4096,6 @@ function myEvents(data, device, from, to) {
     startAt: i.startAt,
     allDay: i.allDay,
     url: eventUrl(i.event.id, i.date),
-    reminderMin: i.event.reminderMin,
     reminderTimes: i.event.reminderTimes
   }));
 }

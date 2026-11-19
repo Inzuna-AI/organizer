@@ -79,7 +79,6 @@ export type TaskInput = Pick<
   | 'recurrenceRule'
   | 'recurrenceMode'
   | 'rotation'
-  | 'reminderMin'
   | 'reminderTimes'
 >
 

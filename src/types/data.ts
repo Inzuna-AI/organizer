@@ -53,11 +53,9 @@ export interface Task extends BaseRecord {
   rotation: boolean
   checklist: ChecklistItem[]
   /**
-   * Erinnerung (seit v1.1.0, optional, kein Schema-Wechsel): fehlt = Standard des Geräts,
-   * null = keine, 0 = zum Zeitpunkt, N = Minuten vorher (Bedeutung siehe lib/reminders.ts)
+   * Erinnerungen zu festen Uhrzeiten (seit v1.2.0, optional), z. B. "-1@15:00" = Vortag 15 Uhr.
+   * Fehlt oder leer = keine Erinnerung. (Ein altes Feld reminderMin aus v1.1.0 wird ignoriert.)
    */
-  reminderMin?: number | null
-  /** Zusätzliche Erinnerungen zu festen Uhrzeiten (seit v1.2.0, optional), z. B. "-1@15:00" = Vortag 15 Uhr */
   reminderTimes?: string[]
 }
 
@@ -99,9 +97,7 @@ export interface CalEvent extends BaseRecord {
   /** RRULE ohne DTSTART wie bei Aufgaben (Serienstart = startAt), null = einmalig */
   recurrenceRule: string | null
   exceptions: EventException[]
-  /** Erinnerung wie bei Aufgaben (optional; fehlt = Standard des Geräts) */
-  reminderMin?: number | null
-  /** Feste Uhrzeiten wie bei Aufgaben */
+  /** Feste Erinnerungszeiten wie bei Aufgaben */
   reminderTimes?: string[]
 }
 
@@ -129,8 +125,9 @@ export interface NotifySettings {
   /** Neuer oder geänderter Termin, an dem ich beteiligt bin (seit schemaVersion 2) */
   newEvent: boolean
   onlyMyTasks: boolean
+  /** Erinnerungen (feste Uhrzeiten der Einträge) auf diesem Gerät an/aus */
   dueReminder: boolean
-  /** Standard für Einträge ohne eigene Erinnerung: 0 / 5 / 15 / 30 / 60 / 1440 Minuten vorher, -1 = am Morgen des Tages */
+  /** Nicht mehr verwendet (seit v1.3.0 nur noch feste Uhrzeiten pro Eintrag); bleibt für ältere App-Versionen */
   dueReminderMinutesBefore: number
   dailySummary: boolean
   dailySummaryTime: string

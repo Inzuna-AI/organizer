@@ -3,6 +3,12 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.3.0] – 2026-11-19
+
+### Geändert
+- Erinnerungen nur noch zu den festen Uhrzeiten, die bei der Aufgabe bzw. dem Termin angekreuzt sind (1 Woche vorher 9 Uhr, Vortag 8/15 Uhr, am Tag 9/12/15/18/21 Uhr). Nichts angekreuzt = keine Erinnerung
+- Entfernt: Auswahl „vor Beginn“ (Standard, zum Zeitpunkt, 5/15/30 Minuten, 1 Stunde, 1 Tag, am Morgen) im Formular und der Geräte-Standard unter Benachrichtigungen. Dort gibt es nur noch den Schalter „Erinnerungen“ an/aus. Dafür im Daten-Repo `scripts/notify.mjs` aktualisieren
+
 ## [1.2.0] – 2026-11-19
 
 ### Neu

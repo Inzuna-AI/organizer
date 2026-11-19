@@ -8,7 +8,7 @@ import { alive } from '@/lib/records'
 import { useAppStore } from '@/store'
 import type { NotifySettings } from '@/types/data'
 import { notificationActions, useMyDevice } from './store'
-import { REMINDER_OPTIONS, reminderPatch, reminderValue, toggleRoom } from './utils'
+import { toggleRoom } from './utils'
 
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -216,23 +216,14 @@ export function NotificationsPage() {
 
           <Card title="Erinnerungen">
             <div className="-my-1 divide-y divide-slate-100">
-              <label className="flex min-h-12 items-center justify-between gap-3 py-2">
-                <span>
-                  <span className="block whitespace-nowrap">Erinnerung (Standard)</span>
-                  <span className="block text-xs text-slate-500">für Einträge ohne eigene Erinnerung</span>
-                </span>
-                <select
-                  value={reminderValue(n)}
-                  onChange={(e) => set(reminderPatch(e.target.value))}
-                  className="min-h-11 min-w-0 rounded-lg border border-slate-300 bg-white px-2 text-base"
-                >
-                  {REMINDER_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="py-1">
+                <Toggle
+                  label="Erinnerungen"
+                  hint="Zu den Uhrzeiten, die bei Aufgaben und Terminen angekreuzt sind"
+                  checked={n.dueReminder}
+                  onChange={(v) => set({ dueReminder: v })}
+                />
+              </div>
               <div className="py-1">
                 <Toggle
                   label="Tägliche Zusammenfassung"
@@ -283,9 +274,9 @@ export function NotificationsPage() {
               </div>
             </div>
             <p className="mt-3 text-xs text-slate-500">
-              Bei jeder Aufgabe und jedem Termin lässt sich unter „Erinnerung“ ein eigener Zeitpunkt wählen. „Aus“
-              schaltet alle Erinnerungen für dieses Gerät ab. GitHub prüft zwischen 6 und 23 Uhr alle 30 Minuten, ob
-              etwas fällig ist. Erinnerungen kommen daher auf etwa eine Viertelstunde genau, nachts fällige um 6 Uhr.
+              Die Uhrzeiten kreuzt du bei jeder Aufgabe und jedem Termin unter „Erinnerung“ an; ohne Häkchen gibt es
+              keine Erinnerung. GitHub prüft zwischen 6 und 23 Uhr alle 30 Minuten, ob etwas fällig ist. Erinnerungen
+              kommen daher auf etwa eine Viertelstunde genau.
             </p>
           </Card>
         </>

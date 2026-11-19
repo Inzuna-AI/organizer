@@ -1,35 +1,22 @@
-import {
-  FIXED_REMINDERS,
-  normalizeReminder,
-  reminderFromValue,
-  reminderOptions,
-  reminderToValue,
-  type ReminderMin,
-} from '@/lib/reminders'
-import { SelectField } from './Field'
+import { FIXED_REMINDERS } from '@/lib/reminders'
 
 interface Props {
-  value: ReminderMin
-  onChange: (v: ReminderMin) => void
-  /** Feste Uhrzeiten ("-1@15:00" …) */
-  fixed: string[]
-  onFixedChange: (codes: string[]) => void
-  allDay: boolean
+  /** Angekreuzte Zeiten ("-1@15:00" …) */
+  value: string[]
+  onChange: (codes: string[]) => void
   /** z. B. Aufgabe ohne Datum: keine Erinnerung möglich */
   disabled?: boolean
 }
 
-/** Auswahl „Erinnerung“ für Aufgaben und Termine: relativ zum Beginn plus feste Uhrzeiten zum Ankreuzen */
-export function ReminderField({ value, onChange, fixed, onFixedChange, allDay, disabled }: Props) {
-  const shown = normalizeReminder(value, allDay)
-
+/** „Erinnerung“ für Aufgaben und Termine: feste Uhrzeiten zum Ankreuzen */
+export function ReminderField({ value, onChange, disabled }: Props) {
   function toggle(code: string) {
-    onFixedChange(fixed.includes(code) ? fixed.filter((c) => c !== code) : [...fixed, code])
+    onChange(value.includes(code) ? value.filter((c) => c !== code) : [...value, code])
   }
 
   const chips = (group: 'before' | 'day') =>
     FIXED_REMINDERS.filter((r) => r.group === group).map((r) => {
-      const on = fixed.includes(r.code)
+      const on = value.includes(r.code)
       return (
         <button
           key={r.code}
@@ -48,35 +35,19 @@ export function ReminderField({ value, onChange, fixed, onFixedChange, allDay, d
     })
 
   return (
-    <div className="space-y-3">
-      <div>
-        <SelectField
-          label="Erinnerung"
-          value={reminderToValue(shown)}
-          onChange={(e) => onChange(reminderFromValue(e.target.value))}
-          disabled={disabled}
-        >
-          {reminderOptions(allDay, shown).map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </SelectField>
-        <p className="mt-1 text-xs text-slate-500">
-          {disabled
-            ? 'Erinnerungen gibt es nur für Einträge mit Datum.'
-            : value === undefined
-              ? 'Standard: jedes Gerät erinnert nach seiner Einstellung unter Benachrichtigungen.'
-              : 'Gilt für alle, die beteiligt sind und Erinnerungen eingeschaltet haben.'}
-        </p>
-      </div>
-      <fieldset disabled={disabled}>
-        <legend className="mb-1 text-sm font-medium text-slate-700">Zusätzlich zu festen Uhrzeiten</legend>
-        <p className="mb-1 text-xs text-slate-500">Vorher</p>
-        <div className="mb-2 flex flex-wrap gap-2">{chips('before')}</div>
-        <p className="mb-1 text-xs text-slate-500">Am Tag selbst</p>
-        <div className="flex flex-wrap gap-2">{chips('day')}</div>
-      </fieldset>
-    </div>
+    <fieldset disabled={disabled}>
+      <legend className="mb-1 text-sm font-medium text-slate-700">Erinnerung</legend>
+      <p className="mb-1 text-xs text-slate-500">Vorher</p>
+      <div className="mb-2 flex flex-wrap gap-2">{chips('before')}</div>
+      <p className="mb-1 text-xs text-slate-500">Am Tag selbst</p>
+      <div className="flex flex-wrap gap-2">{chips('day')}</div>
+      <p className="mt-2 text-xs text-slate-500">
+        {disabled
+          ? 'Erinnerungen gibt es nur für Einträge mit Datum.'
+          : value.length === 0
+            ? 'Nichts angekreuzt = keine Erinnerung.'
+            : 'Gilt für alle, die beteiligt sind und Erinnerungen eingeschaltet haben.'}
+      </p>
+    </fieldset>
   )
 }

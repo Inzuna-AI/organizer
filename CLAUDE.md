@@ -168,9 +168,8 @@ Jeder Datensatz hat `id` (UUID), `updatedAt` (ISO-Zeitstempel), `deleted` (bool)
 - Aufgaben ohne `startAt` liegen in der **Inbox**.
 - `events` (Termine, ab `schemaVersion` 2): `startAt` mit Uhrzeit oder ganztägig `JJJJ-MM-TT`. `endAt` mit Uhrzeit (auch an einem späteren Tag) bzw. bei ganztägigen der letzte Tag inklusive; `null` = 60 Minuten bzw. ein Tag. `personIds` leer oder alle Personen = „Familie“. Ausnahmen einer Serie stehen direkt im Termin (`exceptions`, Schlüssel = ursprüngliches Datum), nicht in `occurrences`.
 - `devices[].notify.newEvent`: Nachricht bei neuem oder geändertem Termin, bei dem die Person dabei ist.
-- `tasks[].reminderMin` / `events[].reminderMin` (optional, seit v1.1.0 ohne Schema-Wechsel): fehlt = Standard des Geräts, `null` = keine, `0` = zum Zeitpunkt, sonst Minuten vorher (5/15/30/60/1440). Ganztägig: unter 1440 = am Morgen des Tages, ab 1440 = Tage vorher am Morgen.
-- `tasks[].reminderTimes` / `events[].reminderTimes` (optional, seit v1.2.0): zusätzliche feste Erinnerungen als `"<Tage relativ>@HH:MM"`, z. B. `"-7@09:00"`, `"-1@15:00"`, `"0@21:00"`. Fehlt = keine.
-- `devices[].notify.dueReminderMinutesBefore`: Standard für Einträge ohne eigene Erinnerung: 0 / 5 / 15 / 30 / 60 / 1440, `-1` = am Morgen des Tages (7 Uhr). `quietHours` kann `null` sein (keine Ruhezeiten).
+- `tasks[].reminderTimes` / `events[].reminderTimes` (optional, seit v1.2.0): Erinnerungen zu festen Uhrzeiten als `"<Tage relativ>@HH:MM"`, z. B. `"-7@09:00"`, `"-1@15:00"`, `"0@21:00"`. Fehlt = keine Erinnerung.
+- `devices[].notify.dueReminder`: Erinnerungen auf diesem Gerät an/aus. `dueReminderMinutesBefore` wird seit v1.3.0 nicht mehr verwendet. `quietHours` kann `null` sein (keine Ruhezeiten).
 - `devices[].testRequestedAt` (optional): Ändert sich der Wert, schickt `notify-on-change` eine Testbenachrichtigung an dieses Gerät.
 - Bei einer Änderung von `schemaVersion` wird beim Laden automatisch migriert (`src/lib/migrations.ts`).
 
@@ -233,7 +232,7 @@ Jede Änderung ist ein Commit auf `data.json` im Daten-Repo. Ein **GitHub-Action
 - Neuer Artikel auf dem Einkaufszettel (gebündelt: „Lena hat 4 Artikel hinzugefügt“)
 - Nur Aufgaben, die mir zugewiesen sind
 - Nur bestimmte Räume (leer = alle)
-- Erinnerung vor Fälligkeit (z. B. 15 / 30 / 60 Minuten oder am Morgen des Tages)
+- Erinnerungen an/aus (die Uhrzeiten werden pro Aufgabe/Termin angekreuzt)
 - Tägliche Zusammenfassung zu einer wählbaren Uhrzeit („Heute: 4 Aufgaben, 1 überfällig“)
 - Ruhezeiten, in denen nichts verschickt wird
 - Button „Testbenachrichtigung senden“
@@ -503,7 +502,7 @@ Hinweise zur Umsetzung:
 - Testbenachrichtigung: Die App setzt `devices[].testRequestedAt`; `notify-on-change` schickt dann einen echten Push an genau dieses Gerät (auch in Ruhezeiten).
 - Die Logik liegt in `src/notify/` (läuft in Node, nur `@/lib` und `@/types`, per ESLint erzwungen) mit Tests; `notify/main.ts` ist der Node-Einstieg. `npm run build:notify` bündelt alles samt rrule nach `data-repo-template/scripts/notify.mjs`. Das Daten-Repo braucht nur `web-push`.
 - Änderungen: Neue, zugewiesene (inkl. Rotation), erledigte, geänderte/verschobene Aufgaben und neue/wieder geöffnete Einkaufsartikel; Häkchen in Checklisten lösen nichts aus. Pro Gerät und Commit wird zu einer Nachricht gebündelt. Nie an Geräte der Person in `updatedBy`.
-- Erinnerungen: Zeitfenster siehe Abschnitt „Erinnerung pro Eintrag“ (v1.1.0); Ganztägiges und Modus „Morgen“ ab 7 Uhr. Die Zusammenfassung kommt im ersten Lauf ab der gewählten Uhrzeit (Fenster 3 h). Verschicktes steht in `notify-state.json` (3 Tage).
+- Erinnerungen: siehe Abschnitt „Erinnerungen zu festen Uhrzeiten“. Die Zusammenfassung kommt im ersten Lauf ab der gewählten Uhrzeit (Fenster 3 h). Verschicktes steht in `notify-state.json` (3 Tage).
 - In Ruhezeiten wird nichts verschickt und auch nichts als verschickt gemerkt.
 - HTTP 404/410 beim Senden: Gerät wird als Tombstone mit `pushSubscription: null` gespeichert (Commit mit `[skip ci]`).
 - Fehlen die VAPID-Secrets, überspringen die Workflows mit einem Hinweis, statt fehlzuschlagen.
@@ -523,26 +522,17 @@ Hinweise zur Umsetzung:
 - Push: `newEvent`/`changedEvent` nur an Personen, die beteiligt sind (leer = alle), Raumfilter gilt nicht. Erinnerungen nutzen die `dueReminder`-Einstellungen, Schlüssel `r|<gerät>|ev:<id>|<start>`. `notify` verträgt Daten ohne `events` (Schema 1).
 - Alte Caches werden beim Start im Speicher migriert (`upgradeCache`, ETag verworfen), damit der nächste Sync das Repo sichert und migriert.
 
-### Erinnerung pro Eintrag (`v1.1.0`, abgeschlossen am 19.11.2026)
-- [x] Feld „Erinnerung“ in Aufgaben- und Termin-Formular (Standard, keine, zum Zeitpunkt, 5/15/30 Min., 1 Std., 1 Tag; ganztägig am Morgen / am Vortag)
-- [x] Geräte-Standard um „Zum Zeitpunkt“, 5 Min. und 1 Tag erweitert
+### Erinnerungen zu festen Uhrzeiten (`v1.1.0`–`v1.3.0`, abgeschlossen am 19.11.2026)
+- [x] Pro Aufgabe und Termin mehrere feste Zeitpunkte ankreuzbar: 1 Woche vorher 9 Uhr, Vortag 8/15 Uhr, am Tag 9/12/15/18/21 Uhr. Nichts angekreuzt = keine Erinnerung
+- [x] Unter Benachrichtigungen nur noch der Schalter „Erinnerungen“ an/aus pro Gerät
 - [x] Erinnerungen alle 30 Minuten von 6 bis 23 Uhr
 
 Hinweise zur Umsetzung:
-- Bedeutung, Beschriftung und Auswahl in `lib/reminders.ts` (App und notify), Formularfeld `components/ui/ReminderField.tsx`. Neue Einträge stehen auf „Standard“ (Feld fehlt), damit nicht die Einstellung eines Geräts für alle gilt. Ein eigener Wert gilt für alle Beteiligten.
-- `reminderMin` ist optional, kein Schema-Wechsel; Änderungen daran lösen keine „geändert“-Nachricht aus (nicht in `WATCHED`).
-- `dueReminder: false` („Aus“) schaltet auf dem Gerät auch eigene Erinnerungen der Einträge ab.
-- `reminderWindow` in `notify/reminders.ts`: mit Uhrzeit von 15 Min. vor dem Erinnerungszeitpunkt bis `max(Beginn, Erinnerungszeitpunkt + 30 Min.)`; ganztägig bzw. Morgen-Modus ab 7 Uhr (am Tag bzw. N Tage vorher) bis 12 Uhr des Tages (Morgen-Modus höchstens bis Beginn).
+- v1.1.0 hatte eine Auswahl „vor Beginn“ (`reminderMin`) und einen Geräte-Standard (`dueReminderMinutesBefore`); seit v1.3.0 entfernt bzw. ignoriert. Alte Werte dürfen in `data.json` stehen bleiben.
+- Auswahl `FIXED_REMINDERS`, `parseFixedReminder`, `normalizeFixedReminders` (sortiert, leer = Feld entfällt) in `lib/reminders.ts` (App und notify); Ankreuz-Chips in `components/ui/ReminderField.tsx`. Gilt für alle Beteiligten mit eingeschalteten Erinnerungen.
+- `reminderTimes` ist optional, kein Schema-Wechsel; Änderungen daran lösen keine „geändert“-Nachricht aus (nicht in `WATCHED`).
+- `fixedReminderWindow`: von 15 Min. vor bis 30 Min. nach der Uhrzeit, auch nach Beginn (bei Aufgaben nur offene). Schlüssel `<Erinnerungs-Schlüssel>|<code>`. Kandidaten werden 7 Tage voraus betrachtet (`MAX_DAYS_BEFORE`). Mehrere gleichzeitig fällige Erinnerungen eines Eintrags = eine Zeile, alle Schlüssel werden gemerkt.
 - Vor 6 Uhr Berliner Zeit verschickt `reminderRun` nichts (auch bei manuellem Start) und merkt nichts. Der Cron `7,37 4-22 * * *` (UTC) deckt Sommer- und Winterzeit ab.
-
-### Erinnerungen zu festen Uhrzeiten (`v1.2.0`, abgeschlossen am 19.11.2026)
-- [x] Mehrere feste Zeitpunkte ankreuzbar: 1 Woche vorher 9 Uhr, Vortag 8/15 Uhr, am Tag 9/12/15/18/21 Uhr (Aufgaben und Termine)
-- [x] Zusätzlich zur Erinnerung vor Beginn
-
-Hinweise zur Umsetzung:
-- Auswahl `FIXED_REMINDERS`, `parseFixedReminder`, `normalizeFixedReminders` (sortiert, leer = Feld entfällt) in `lib/reminders.ts`; Ankreuz-Chips in `ReminderField`.
-- `fixedReminderWindow`: von 15 Min. vor bis 30 Min. nach der Uhrzeit, auch nach Beginn (bei Aufgaben nur offene). Schlüssel `<Erinnerungs-Schlüssel>|<code>`. Kandidaten werden 7 Tage voraus betrachtet (`MAX_DAYS_BEFORE`).
-- Mehrere gleichzeitig fällige Erinnerungen eines Eintrags = eine Zeile, alle Schlüssel werden gemerkt.
 
 ### Später / optional
 - Sync mit Google- oder Apple-Kalender (z. B. als ICS-Export)
