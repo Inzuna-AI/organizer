@@ -86,7 +86,7 @@ export function TaskForm({ initial, defaults, submitLabel, onSubmit }: Props) {
 
       <Card>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3">
             <TextField label="Datum" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             <TextField
               label="Uhrzeit"

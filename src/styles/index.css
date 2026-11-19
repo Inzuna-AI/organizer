@@ -32,6 +32,12 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* iOS Safari: Datum/Uhrzeit sonst zentriert und mit eigener Höhe */
+input::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.5em;
+}
+
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
