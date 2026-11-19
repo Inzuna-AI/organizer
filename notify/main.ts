@@ -68,8 +68,9 @@ async function main() {
   }
   const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT } = process.env
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY || !VAPID_SUBJECT) {
-    console.error('VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY und VAPID_SUBJECT müssen als Secrets gesetzt sein.')
-    process.exit(1)
+    // Noch nicht eingerichtet: überspringen statt fehlschlagen (sonst Fehler-Mails bei jedem Speichern)
+    console.log('::warning::Push nicht eingerichtet: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY und VAPID_SUBJECT als Secrets anlegen.')
+    return
   }
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 

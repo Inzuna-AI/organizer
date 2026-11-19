@@ -4008,8 +4008,8 @@ async function main() {
   }
   const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT } = process.env;
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY || !VAPID_SUBJECT) {
-    console.error("VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY und VAPID_SUBJECT m\xFCssen als Secrets gesetzt sein.");
-    process.exit(1);
+    console.log("::warning::Push nicht eingerichtet: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY und VAPID_SUBJECT als Secrets anlegen.");
+    return;
   }
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
   if (!existsSync(DATA)) {
