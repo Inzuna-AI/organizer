@@ -4017,12 +4017,19 @@ function testMessages(prev, next) {
   }));
 }
 
+// src/lib/reminders.ts
+function parseFixedReminder(code) {
+  const m = /^(-?\d{1,3})@([01]\d|2[0-3]):([0-5]\d)$/.exec(code);
+  return m ? { days: Number(m[1]), time: `${m[2]}:${m[3]}` } : null;
+}
+
 // src/notify/reminders.ts
 var emptyState = () => ({ sent: {}, summaries: {} });
 var MORNING = "07:00";
 var ACTIVE_FROM = "06:00";
 var EARLY_MS = 15 * 6e4;
 var LATE_MS = 30 * 6e4;
+var MAX_DAYS_BEFORE = 7;
 var SUMMARY_WINDOW_MIN = 180;
 var mine = (device) => (s) => s.status === "open" && relevant(device, s.task.roomId, s.assigneeIds, { mineOrUnassigned: true });
 function reminderKey(device, s) {
@@ -4033,26 +4040,37 @@ function dueReminder(data, device, now, state) {
   if (!n.dueReminder) return null;
   const today = berlinParts(now).date;
   const nowMs = now.getTime();
+  const until = addDays(today, MAX_DAYS_BEFORE);
   const candidates = [
-    ...myEvents(data, device, today, addDays(today, 1)),
-    ...slotsBetween(data, today, addDays(today, 1)).filter(mine(device)).map((s) => ({
+    ...myEvents(data, device, today, until),
+    ...slotsBetween(data, today, until).filter(mine(device)).map((s) => ({
       kind: "task",
       key: reminderKey(device, s),
       title: s.task.title,
       startAt: s.startAt,
       allDay: s.allDay,
       url: taskUrl(s.task.id, s.date),
-      reminderMin: s.task.reminderMin
+      reminderMin: s.task.reminderMin,
+      reminderTimes: s.task.reminderTimes
     }))
   ];
-  const due = candidates.filter((s) => {
-    if (state.sent[s.key]) return false;
-    const w = reminderWindow(s, n.dueReminderMinutesBefore);
-    return !!w && nowMs >= w.from && nowMs < w.until;
-  });
+  const hit = (w) => !!w && nowMs >= w.from && nowMs < w.until;
+  const due = [];
+  const keys = [];
+  for (const s of candidates) {
+    const itemKeys = [];
+    if (!state.sent[s.key] && hit(reminderWindow(s, n.dueReminderMinutesBefore))) itemKeys.push(s.key);
+    for (const code of s.reminderTimes ?? []) {
+      const k = `${s.key}|${code}`;
+      if (!state.sent[k] && hit(fixedReminderWindow(s.startAt, code))) itemKeys.push(k);
+    }
+    if (itemKeys.length > 0) {
+      due.push(s);
+      keys.push(...itemKeys);
+    }
+  }
   if (due.length === 0) return null;
   due.sort((a, b) => a.startAt.localeCompare(b.startAt));
-  const keys = due.map((s) => s.key);
   if (due.length === 1) {
     const s = due[0];
     return {
@@ -4066,6 +4084,12 @@ function dueReminder(data, device, now, state) {
     payload: { title: `Erinnerung: ${due.length} ${what}`, body: listTitles(due.map((s) => s.title), 4), url: "#/" },
     keys
   };
+}
+function fixedReminderWindow(startAt, code) {
+  const p = parseFixedReminder(code);
+  if (!p) return null;
+  const at = berlinWallToDate(`${addDays(startAt.slice(0, 10), p.days)}T${p.time}`).getTime();
+  return { from: at - EARLY_MS, until: at + LATE_MS };
 }
 function reminderWindow(item, deviceDefault) {
   const min = item.reminderMin === void 0 ? deviceDefault : item.reminderMin;
@@ -4091,7 +4115,8 @@ function myEvents(data, device, from, to) {
     startAt: i.startAt,
     allDay: i.allDay,
     url: eventUrl(i.event.id, i.date),
-    reminderMin: i.event.reminderMin
+    reminderMin: i.event.reminderMin,
+    reminderTimes: i.event.reminderTimes
   }));
 }
 function dailySummary(data, device, now, state) {

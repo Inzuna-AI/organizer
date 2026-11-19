@@ -2,6 +2,7 @@
 import type { DataFile, Device } from '@/types/data'
 import { addDays } from '@/lib/dates'
 import { eventsBetween, involves } from '@/lib/events'
+import { parseFixedReminder } from '@/lib/reminders'
 import {
   activeDevices,
   eventUrl,
@@ -35,6 +36,8 @@ export const ACTIVE_FROM = '06:00'
 const EARLY_MS = 15 * 60_000
 /** … oder bis zu 30 Minuten später, falls GitHub den Lauf verzögert (aber nicht nach Beginn, außer „zum Zeitpunkt“) */
 const LATE_MS = 30 * 60_000
+/** So weit voraus werden Einträge betrachtet (längste Vorlaufzeit: 1 Woche bzw. „1 Tag vorher“) */
+const MAX_DAYS_BEFORE = 7
 /** Zusammenfassung höchstens so lange nach der Wunschzeit nachholen (verspätete Läufe) */
 const SUMMARY_WINDOW_MIN = 180
 
@@ -57,9 +60,11 @@ export function dueReminder(
   const today = berlinParts(now).date
   const nowMs = now.getTime()
 
+  // Bis zu einer Woche voraus („1 Woche vorher“)
+  const until = addDays(today, MAX_DAYS_BEFORE)
   const candidates: DueItem[] = [
-    ...myEvents(data, device, today, addDays(today, 1)),
-    ...slotsBetween(data, today, addDays(today, 1))
+    ...myEvents(data, device, today, until),
+    ...slotsBetween(data, today, until)
       .filter(mine(device))
       .map((s) => ({
         kind: 'task' as const,
@@ -69,17 +74,28 @@ export function dueReminder(
         allDay: s.allDay,
         url: taskUrl(s.task.id, s.date),
         reminderMin: s.task.reminderMin,
+        reminderTimes: s.task.reminderTimes,
       })),
   ]
-  const due = candidates.filter((s) => {
-    if (state.sent[s.key]) return false
-    const w = reminderWindow(s, n.dueReminderMinutesBefore)
-    return !!w && nowMs >= w.from && nowMs < w.until
-  })
+  const hit = (w: { from: number; until: number } | null) => !!w && nowMs >= w.from && nowMs < w.until
+  const due: DueItem[] = []
+  const keys: string[] = []
+  for (const s of candidates) {
+    // Pro Eintrag höchstens einmal in der Nachricht, auch wenn mehrere Erinnerungen gleichzeitig fällig sind
+    const itemKeys: string[] = []
+    if (!state.sent[s.key] && hit(reminderWindow(s, n.dueReminderMinutesBefore))) itemKeys.push(s.key)
+    for (const code of s.reminderTimes ?? []) {
+      const k = `${s.key}|${code}`
+      if (!state.sent[k] && hit(fixedReminderWindow(s.startAt, code))) itemKeys.push(k)
+    }
+    if (itemKeys.length > 0) {
+      due.push(s)
+      keys.push(...itemKeys)
+    }
+  }
   if (due.length === 0) return null
 
   due.sort((a, b) => a.startAt.localeCompare(b.startAt))
-  const keys = due.map((s) => s.key)
   if (due.length === 1) {
     const s = due[0]
     return {
@@ -105,6 +121,19 @@ interface DueItem {
   url: string
   /** Erinnerung des Eintrags; undefined = Standard des Geräts */
   reminderMin?: number | null
+  /** Feste Uhrzeiten ("-1@15:00" …) */
+  reminderTimes?: string[]
+}
+
+/**
+ * Feste Uhrzeit: von 15 Minuten vorher bis 30 Minuten danach (Lauf alle 30 Minuten, evtl. verzögert).
+ * Gilt auch nach Beginn (z. B. „am Tag 21 Uhr“ für eine noch offene Aufgabe).
+ */
+export function fixedReminderWindow(startAt: string, code: string): { from: number; until: number } | null {
+  const p = parseFixedReminder(code)
+  if (!p) return null
+  const at = berlinWallToDate(`${addDays(startAt.slice(0, 10), p.days)}T${p.time}`).getTime()
+  return { from: at - EARLY_MS, until: at + LATE_MS }
 }
 
 /**
@@ -144,6 +173,7 @@ function myEvents(data: DataFile, device: Device, from: string, to: string): Due
       allDay: i.allDay,
       url: eventUrl(i.event.id, i.date),
       reminderMin: i.event.reminderMin,
+      reminderTimes: i.event.reminderTimes,
     }))
 }
 

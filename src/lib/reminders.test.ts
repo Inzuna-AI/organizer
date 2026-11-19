@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeReminder, reminderFromValue, reminderLabel, reminderOptions, reminderToValue } from './reminders'
+import { normalizeFixedReminders, normalizeReminder, parseFixedReminder, reminderFromValue, reminderLabel, reminderOptions, reminderToValue } from './reminders'
 
 describe('Erinnerung pro Eintrag', () => {
   it('Select-Werte hin und zurück', () => {
@@ -21,6 +21,14 @@ describe('Erinnerung pro Eintrag', () => {
     expect(normalizeReminder(15, false)).toBe(15)
     expect(normalizeReminder(undefined, true)).toBeUndefined()
     expect(normalizeReminder(null, true)).toBeNull()
+  })
+
+  it('feste Uhrzeiten lesen und ordnen', () => {
+    expect(parseFixedReminder('-1@15:00')).toEqual({ days: -1, time: '15:00' })
+    expect(parseFixedReminder('0@24:00')).toBeNull()
+    expect(parseFixedReminder('quatsch')).toBeNull()
+    expect(normalizeFixedReminders(['0@21:00', '-7@09:00', '0@21:00', 'x', '-1@08:00'])).toEqual(['-7@09:00', '-1@08:00', '0@21:00'])
+    expect(normalizeFixedReminders([])).toBeUndefined()
   })
 
   it('abweichender Wert bleibt wählbar', () => {

@@ -3,6 +3,12 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.2.0] – 2026-11-19
+
+### Neu
+- Erinnerungen zu festen Uhrzeiten, mehrere ankreuzbar: 1 Woche vorher (9 Uhr), Vortag 8 und 15 Uhr, am Tag selbst 9, 12, 15, 18 und 21 Uhr. Gilt für Aufgaben und Termine, zusätzlich zur Erinnerung vor Beginn
+- Bei Aufgaben kommen feste Erinnerungen nur, solange die Aufgabe offen ist. Mehrere gleichzeitig fällige Erinnerungen zu einem Eintrag ergeben eine Nachricht. Dafür im Daten-Repo `scripts/notify.mjs` aktualisieren
+
 ## [1.1.0] – 2026-11-19
 
 ### Neu

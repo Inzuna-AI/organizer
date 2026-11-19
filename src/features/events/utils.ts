@@ -5,7 +5,7 @@ import { formatDay } from '@/lib/dates'
 
 export type EventInput = Pick<
   CalEvent,
-  'title' | 'location' | 'note' | 'startAt' | 'endAt' | 'allDay' | 'personIds' | 'recurrenceRule' | 'reminderMin'
+  'title' | 'location' | 'note' | 'startAt' | 'endAt' | 'allDay' | 'personIds' | 'recurrenceRule' | 'reminderMin' | 'reminderTimes'
 >
 
 /** Werte des Formulars (Datum/Uhrzeit getrennt) */

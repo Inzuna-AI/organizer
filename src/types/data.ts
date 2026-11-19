@@ -57,6 +57,8 @@ export interface Task extends BaseRecord {
    * null = keine, 0 = zum Zeitpunkt, N = Minuten vorher (Bedeutung siehe lib/reminders.ts)
    */
   reminderMin?: number | null
+  /** Zusätzliche Erinnerungen zu festen Uhrzeiten (seit v1.2.0, optional), z. B. "-1@15:00" = Vortag 15 Uhr */
+  reminderTimes?: string[]
 }
 
 export interface Occurrence extends BaseRecord {
@@ -99,6 +101,8 @@ export interface CalEvent extends BaseRecord {
   exceptions: EventException[]
   /** Erinnerung wie bei Aufgaben (optional; fehlt = Standard des Geräts) */
   reminderMin?: number | null
+  /** Feste Uhrzeiten wie bei Aufgaben */
+  reminderTimes?: string[]
 }
 
 export interface ShoppingList extends BaseRecord {
