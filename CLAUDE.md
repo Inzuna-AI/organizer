@@ -432,11 +432,11 @@ Hinweise zur Umsetzung: Vorschläge stammen auch aus bereits entfernten Artikeln
 
 Hinweise zur Umsetzung: Kürzel-Badges erscheinen in Woche und Tag; in der Monatsansicht ist dafür zu wenig Platz (dort „Farbe nach Person“ nutzen). Kalenderzeiten sind lokale Gerätezeit; `startAt` wird ohne Zeitzone als lokale Wandzeit gespeichert. Long-Press-Verzögerung 350 ms, Raster 15 Minuten. Ansicht und Farbmodus merkt sich das Gerät (`loadPref`). `tasksToEvents` löst Serien für den sichtbaren Zeitraum (`datesSet`) in einzelne Termine auf.
 
-### Phase 4: Wiederholungen
-- [ ] Wiederholungs-Editor mit den Mustern oben
-- [ ] „Nur dieser Termin / ganze Serie“ beim Bearbeiten und Verschieben
-- [ ] `after_completion`-Modus
-- [ ] Rotation zwischen Personen
+### Phase 4: Wiederholungen (`v0.4.0`, abgeschlossen am 19.11.2026)
+- [x] Wiederholungs-Editor mit den Mustern oben
+- [x] „Nur dieser Termin / ganze Serie“ beim Bearbeiten und Verschieben
+- [x] `after_completion`-Modus
+- [x] Rotation zwischen Personen
 
 Hinweise zur Umsetzung:
 - Die gesamte Logik liegt rein in `lib/recurrence.ts` (rrule.js, „schwebend“ in UTC gerechnet, damit Sommerzeit nichts verschiebt). `notify.mjs` (Phase 6) soll sie übernehmen. Achtung: In Node ist `rrule` CommonJS, dort `import pkg from 'rrule'; const { RRule } = pkg`.
