@@ -3,6 +3,20 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.4.0] – 2026-11-19
+
+### Neu
+- Aufgaben mit Zeitraum statt festem Tag: „irgendwann in dieser Woche“ bzw. „in diesem Monat“. Im Formular unter „Fester Tag / Zeitraum“ Woche oder Monat wählen
+- Auch wiederkehrend: jede Woche, alle 2–4 Wochen, jeden Monat, alle 2, 3 oder 6 Monate, jedes Jahr. Der Zeitraum ist so lang wie der Abstand („alle 2 Wochen“ = 2 Wochen Zeit). Rotation zwischen Personen geht auch hier
+- Eigener Bereich „Zeitraum“ unter Aufgaben, getrennt von „Geplant“, gruppiert nach „Diese Woche“, „November“ usw.
+- Heute-Ansicht: Abschnitt „Im Zeitraum“ mit allen laufenden Zeitraum-Aufgaben
+- Nach dem Erledigen erscheint gleich der nächste Zeitraum. Bei Serien verfällt ein nicht erledigter Zeitraum, sobald der nächste beginnt; einmalige werden nach Ablauf als überfällig angezeigt
+- „Diesmal auslassen“ und „Diesmal zuständig“ für einzelne Zeiträume
+
+### Hinweise
+- Zeitraum-Aufgaben stehen nicht im Kalender, haben keine Erinnerungen und zählen nicht in der täglichen Zusammenfassung
+- Benachrichtigungen nennen den Zeitraum („Fenster putzen · Diese Woche“). Dafür im Daten-Repo `scripts/notify.mjs` aktualisieren
+
 ## [1.3.1] – 2026-11-19
 
 ### Geändert

@@ -92,6 +92,19 @@ export function TodayPage() {
         )}
       </section>
 
+      {b.period.length > 0 && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold text-slate-500">
+            <Link to="/aufgaben?ansicht=zeitraum">Im Zeitraum ({b.period.length})</Link>
+          </h3>
+          <ul className="space-y-2">
+            {b.period.map((t) => (
+              <TaskItem key={instanceKey(t)} task={t} />
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="grid grid-cols-2 gap-2 text-sm">
         <Link
           to="/aufgaben?ansicht=inbox"

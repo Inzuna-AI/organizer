@@ -12,6 +12,7 @@ import {
   overdueInstance,
   type Instance,
 } from '@/lib/recurrence'
+import { isPeriodTask, periodInstances, periodLabel, periodRange, periodStartOf } from '@/lib/periods'
 
 export const PRIORITY_LABEL: Record<Priority, string> = {
   low: 'Niedrig',
@@ -55,8 +56,16 @@ export function isInbox(t: Task): boolean {
 }
 
 export function isOverdue(t: Task, today: string): boolean {
+  const range = taskPeriod(t)
+  if (range) return t.status === 'open' && range.to < today
   const d = taskDate(t)
   return t.status === 'open' && d !== null && d < today
+}
+
+/** Zeitraum einer Aufgabe bzw. eines Serien-Zeitraums (startAt = erster Tag); null = fester Tag */
+export function taskPeriod(t: Pick<Task, 'period' | 'startAt' | 'recurrenceRule'>): { from: string; to: string } | null {
+  if (!isPeriodTask(t)) return null
+  return periodRange(t, t.startAt!.slice(0, 10))
 }
 
 export function checklistProgress(items: ChecklistItem[]): { done: number; total: number } {
@@ -80,14 +89,16 @@ export type TaskInput = Pick<
   | 'recurrenceMode'
   | 'rotation'
   | 'reminderTimes'
+  | 'period'
 >
 
 export function createTask(input: TaskInput, personId: string | null): Task {
   return {
     ...newBase(personId),
     ...input,
-    // Eine Serie braucht einen Starttermin
+    // Eine Serie und ein Zeitraum brauchen einen Starttermin
     recurrenceRule: input.startAt ? input.recurrenceRule : null,
+    period: input.startAt ? (input.period ?? null) : null,
     status: 'open',
     completedAt: null,
   }
@@ -133,8 +144,9 @@ export function taskLink(t: TaskInstance): string {
 }
 
 /**
- * Für Listen (Heute, Geplant, Erledigt): einmalige Aufgaben unverändert, Serien als einzelne Termine:
+ * Für Listen (Heute, Geplant, Zeitraum, Erledigt): einmalige Aufgaben unverändert, Serien als einzelne Termine:
  * der letzte verpasste (überfällig), alle von heute und morgen, der nächste offene und alle erledigten.
+ * Zeitraum-Serien: der laufende Zeitraum, ggf. der nächste und alle erledigten (siehe periodInstances).
  */
 export function listInstances(tasks: Task[], occurrences: Occurrence[], today: string): TaskInstance[] {
   const out: TaskInstance[] = []
@@ -142,6 +154,10 @@ export function listInstances(tasks: Task[], occurrences: Occurrence[], today: s
     if (t.deleted) continue
     if (!isSeries(t)) {
       out.push(t)
+      continue
+    }
+    if (isPeriodTask(t)) {
+      for (const i of periodInstances(t, occurrences, today)) out.push(toTaskInstance(t, i))
       continue
     }
     const byDate = new Map<string, Instance>()
@@ -187,7 +203,7 @@ export function upsertOccurrence(
 
 // ---------- Filter ----------
 
-export type TaskView = 'planned' | 'inbox' | 'done'
+export type TaskView = 'planned' | 'period' | 'inbox' | 'done'
 
 export interface TaskFilter {
   view: TaskView
@@ -209,7 +225,8 @@ export function matchesFilter(t: Task, f: Omit<TaskFilter, 'view'>): boolean {
 export function inView(t: Task, view: TaskView): boolean {
   if (view === 'done') return t.status === 'done'
   if (view === 'inbox') return t.status === 'open' && !t.startAt
-  return t.status === 'open' && !!t.startAt
+  if (view === 'period') return t.status === 'open' && isPeriodTask(t)
+  return t.status === 'open' && !!t.startAt && !isPeriodTask(t)
 }
 
 export function filterTasks(tasks: TaskInstance[], f: TaskFilter): TaskInstance[] {
@@ -268,11 +285,66 @@ export function groupByDay(tasks: TaskInstance[], today: string): TaskGroup[] {
   return groups
 }
 
+/**
+ * Zeitraum-Aufgaben gruppieren: überfällige (einmalige, deren Zeitraum vorbei ist), dann laufende,
+ * dann kommende, jeweils nach Zeitraum („Diese Woche“, „Dezember“ …).
+ */
+export function groupByPeriod(tasks: TaskInstance[], today: string): TaskGroup[] {
+  const groups: TaskGroup[] = []
+  const overdue = tasks.filter((t) => isOverdue(t, today))
+  if (overdue.length) groups.push({ key: 'overdue', label: 'Überfällig', overdue: true, tasks: overdue })
+  const byRange = new Map<string, { range: { from: string; to: string }; unit: 'week' | 'month'; tasks: TaskInstance[] }>()
+  for (const t of tasks) {
+    const range = taskPeriod(t)
+    if (!range || isOverdue(t, today)) continue
+    const key = `${range.from}|${range.to}`
+    if (!byRange.has(key)) byRange.set(key, { range, unit: t.period ?? 'week', tasks: [] })
+    byRange.get(key)!.tasks.push(t)
+  }
+  const sorted = [...byRange.entries()].sort(([, a], [, b]) => {
+    const ca = a.range.from <= today ? 0 : 1
+    const cb = b.range.from <= today ? 0 : 1
+    if (ca !== cb) return ca - cb
+    if (a.range.to !== b.range.to) return a.range.to < b.range.to ? -1 : 1
+    return a.range.from < b.range.from ? -1 : 1
+  })
+  for (const [key, g] of sorted) {
+    const label = periodLabel(g.range, g.unit, today)
+    const suffix = g.range.from > today ? ` · ab ${formatDay(g.range.from, today)}` : ''
+    groups.push({ key, label: `${label}${suffix}`, tasks: g.tasks })
+  }
+  return groups
+}
+
+/** Liegt today im Zeitraum (oder ist er schon vorbei)? Für die Heute-Ansicht. */
+export function periodStarted(t: Task, today: string): boolean {
+  const range = taskPeriod(t)
+  return !!range && range.from <= today
+}
+
+/** Für das Formular: Auswahl der nächsten Wochen bzw. Monate */
+export function periodChoices(unit: 'week' | 'month', today: string, count: number): Array<{ from: string; label: string }> {
+  const out: Array<{ from: string; label: string }> = []
+  let from = periodStartOf(today, unit)
+  for (let i = 0; i < count; i++) {
+    const range = periodRange({ period: unit, recurrenceRule: null, startAt: from }, from)
+    const name = periodLabel(range, unit, today)
+    const dates = unit === 'week' && (name === 'Diese Woche' || name === 'Nächste Woche')
+      ? ` (${range.from.slice(8, 10)}.${range.from.slice(5, 7)}.–${range.to.slice(8, 10)}.${range.to.slice(5, 7)}.)`
+      : ''
+    out.push({ from, label: `${name}${dates}` })
+    from = addDays(range.to, 1)
+  }
+  return out
+}
+
 // ---------- Heute-Ansicht ----------
 
 export interface TodayBuckets {
   overdue: TaskInstance[]
   today: TaskInstance[]
+  /** Zeitraum-Aufgaben, deren Zeitraum läuft */
+  period: TaskInstance[]
   /** heute erledigt (fällig heute oder heute abgehakt) */
   doneToday: TaskInstance[]
   inboxCount: number
@@ -291,15 +363,30 @@ export function todayBuckets(
   const tomorrow = addDays(today, 1)
   return {
     overdue: sortTasks(open.filter((t) => isOverdue(t, today))),
-    today: sortTasks(open.filter((t) => taskDate(t) === today)),
+    today: sortTasks(open.filter((t) => !isPeriodTask(t) && taskDate(t) === today)),
+    period: sortByPeriodEnd(open.filter((t) => periodStarted(t, today) && !isOverdue(t, today))),
     doneToday: sortDone(
       relevant.filter(
         (t) =>
           t.status === 'done' &&
-          (taskDate(t) === today || (t.completedAt !== null && completedDay(t.completedAt) === today)),
+          ((!isPeriodTask(t) && taskDate(t) === today) ||
+            (t.completedAt !== null && completedDay(t.completedAt) === today)),
       ),
     ),
     inboxCount: open.filter((t) => !t.startAt).length,
-    tomorrowCount: open.filter((t) => taskDate(t) === tomorrow).length,
+    tomorrowCount: open.filter((t) => !isPeriodTask(t) && taskDate(t) === tomorrow).length,
   }
+}
+
+/** Zeitraum-Aufgaben: was zuerst endet, zuerst; dann Priorität und Titel */
+function sortByPeriodEnd(tasks: TaskInstance[]): TaskInstance[] {
+  return [...tasks].sort((a, b) => {
+    const ea = taskPeriod(a)?.to ?? ''
+    const eb = taskPeriod(b)?.to ?? ''
+    if (ea !== eb) return ea < eb ? -1 : 1
+    const pa = PRIORITY_RANK[a.priority] ?? 1
+    const pb = PRIORITY_RANK[b.priority] ?? 1
+    if (pa !== pb) return pa - pb
+    return a.title.localeCompare(b.title, 'de')
+  })
 }

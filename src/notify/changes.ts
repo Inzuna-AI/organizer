@@ -3,12 +3,14 @@ import type { CalEvent, DataFile, Device, Occurrence, Task } from '@/types/data'
 import { addDays } from '@/lib/dates'
 import { eventsBetween, involves, type EventInstance } from '@/lib/events'
 import { instanceAt, isSeries } from '@/lib/recurrence'
+import { isPeriodTask } from '@/lib/periods'
 import {
   activeDevices,
   currentAssignees,
   eventUrl,
   isQuiet,
   listTitles,
+  periodSlotLabel,
   personName,
   relevant,
   slotLabel,
@@ -39,7 +41,7 @@ export interface ChangeEvent {
 }
 
 /** Felder, deren Änderung als „geändert oder verschoben“ zählt (Checklisten-Haken nicht) */
-const WATCHED = ['title', 'description', 'startAt', 'allDay', 'durationMin', 'roomId', 'priority', 'recurrenceRule', 'recurrenceMode'] as const
+const WATCHED = ['title', 'description', 'startAt', 'allDay', 'durationMin', 'roomId', 'priority', 'recurrenceRule', 'recurrenceMode', 'period'] as const
 
 /** Termin-Felder, deren Änderung gemeldet wird */
 const EVENT_WATCHED = ['title', 'location', 'startAt', 'endAt', 'allDay', 'personIds', 'recurrenceRule', 'exceptions'] as const
@@ -50,6 +52,7 @@ function nextEventInstance(e: CalEvent, today: string): EventInstance | null {
 }
 
 function whenOf(t: Task, occurrences: Occurrence[], date: string | null, today: string): string | undefined {
+  if (isPeriodTask(t)) return periodSlotLabel(t, date ?? t.startAt!.slice(0, 10), today)
   if (isSeries(t) && date) {
     const i = instanceAt(t, occurrences, date)
     return i ? slotLabel(i.startAt, i.allDay, today) : undefined

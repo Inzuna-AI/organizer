@@ -12,6 +12,8 @@ import { ChecklistEditor } from './ChecklistEditor'
 import { RecurrenceEditor, type RecurrenceValue } from '@/components/ui/RecurrenceEditor'
 import { ReminderField } from '@/components/ui/ReminderField'
 import { normalizeFixedReminders } from '@/lib/reminders'
+import { isPeriodTask, periodInterval, periodRule, periodStartOf } from '@/lib/periods'
+import { PeriodField, type PeriodValue } from './PeriodField'
 import {
   buildStartAt,
   DURATION_OPTIONS,
@@ -25,7 +27,7 @@ import {
 interface Props {
   initial?: Task
   /** Vorbelegung für neue Aufgaben */
-  defaults?: { date?: string; time?: string; assigneeIds?: string[] }
+  defaults?: { date?: string; time?: string; assigneeIds?: string[]; period?: boolean }
   /**
    * Beim Bearbeiten eines einzelnen Termins: Datum/Uhrzeit im Formular sind die des Termins,
    * die Regel wird aber vom Serienstart aus gebaut.
@@ -59,6 +61,21 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
   }))
   const [reminderTimes, setReminderTimes] = useState<string[]>(initial?.reminderTimes ?? [])
   const ruleDate = seriesDate ?? date
+  const today = berlinDateString()
+  // Fester Tag oder Zeitraum („irgendwann diese Woche“)
+  const [kind, setKind] = useState<'day' | 'period'>(() =>
+    (initial ? isPeriodTask(initial) : !!defaults?.period) ? 'period' : 'day',
+  )
+  const [period, setPeriod] = useState<PeriodValue>(() =>
+    initial && isPeriodTask(initial)
+      ? {
+          unit: initial.period!,
+          from: initial.startAt!.slice(0, 10),
+          repeat: initial.recurrenceRule ? periodInterval(initial) : null,
+          rotation: initial.rotation,
+        }
+      : { unit: 'week', from: periodStartOf(today, 'week'), repeat: null, rotation: false },
+  )
 
   function changeRecurrence(v: RecurrenceValue) {
     // Eine Serie braucht einen Starttermin
@@ -78,8 +95,31 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
   function submit(e: FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
+    const common = {
+      title: title.trim(),
+      description: description.trim(),
+      roomId: roomId || null,
+      priority,
+      durationMin: duration ? Number(duration) : null,
+      assigneeIds,
+      checklist: checklist.filter((i) => i.title.trim()).map((i) => ({ ...i, title: i.title.trim() })),
+    }
+    if (kind === 'period') {
+      onSubmit({
+        ...common,
+        startAt: period.from,
+        allDay: true,
+        period: period.unit,
+        recurrenceRule: period.repeat ? periodRule(period.unit, period.repeat) : null,
+        recurrenceMode: 'fixed',
+        rotation: !!period.repeat && period.rotation && assigneeIds.length >= 2,
+        reminderTimes: undefined,
+      })
+      return
+    }
     const { startAt, allDay } = buildStartAt(date, time)
     onSubmit({
+      period: null,
       title: title.trim(),
       description: description.trim(),
       roomId: roomId || null,
@@ -115,23 +155,45 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
 
       <Card>
         <div className="space-y-4">
-          <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3">
-            <TextField label="Datum" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            <TextField
-              label="Uhrzeit"
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              disabled={!date}
-            />
+          <div className="grid grid-cols-2 rounded-xl bg-slate-200 p-1" role="group" aria-label="Wann">
+            {([
+              { k: 'day', label: 'Fester Tag' },
+              { k: 'period', label: 'Zeitraum' },
+            ] as const).map((o) => (
+              <button
+                key={o.k}
+                type="button"
+                aria-pressed={kind === o.k}
+                onClick={() => setKind(o.k)}
+                className={`min-h-10 rounded-lg text-sm font-medium ${kind === o.k ? 'bg-white shadow-sm' : 'text-slate-600'}`}
+              >
+                {o.label}
+              </button>
+            ))}
           </div>
-          <p className="-mt-2 text-xs text-slate-500">
-            {date ? (time ? '' : 'Ohne Uhrzeit = ganztägig.') : 'Ohne Datum landet die Aufgabe in der Inbox.'}
-          </p>
-          {date && !recurrence.spec && (
-            <Button variant="ghost" className="-mt-2" onClick={() => { setDate(''); setTime(''); setRecurrence((r) => ({ ...r, spec: null })) }}>
-              Datum entfernen (in die Inbox)
-            </Button>
+          {kind === 'period' ? (
+            <PeriodField value={period} onChange={setPeriod} today={today} canRotate={assigneeIds.length >= 2} />
+          ) : (
+            <>
+              <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3">
+                <TextField label="Datum" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                <TextField
+                  label="Uhrzeit"
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  disabled={!date}
+                />
+              </div>
+              <p className="-mt-2 text-xs text-slate-500">
+                {date ? (time ? '' : 'Ohne Uhrzeit = ganztägig.') : 'Ohne Datum landet die Aufgabe in der Inbox.'}
+              </p>
+              {date && !recurrence.spec && (
+                <Button variant="ghost" className="-mt-2" onClick={() => { setDate(''); setTime(''); setRecurrence((r) => ({ ...r, spec: null })) }}>
+                  Datum entfernen (in die Inbox)
+                </Button>
+              )}
+            </>
           )}
           <SelectField label="Dauer" value={duration} onChange={(e) => setDuration(e.target.value)}>
             <option value="">–</option>
@@ -141,18 +203,20 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
               </option>
             ))}
           </SelectField>
-          <ReminderField value={reminderTimes} onChange={setReminderTimes} disabled={!date} />
+          {kind === 'day' && <ReminderField value={reminderTimes} onChange={setReminderTimes} disabled={!date} />}
         </div>
       </Card>
 
-      <Card>
-        <RecurrenceEditor
-          value={recurrence}
-          onChange={changeRecurrence}
-          date={ruleDate || berlinDateString()}
-          canRotate={assigneeIds.length >= 2}
-        />
-      </Card>
+      {kind === 'day' && (
+        <Card>
+          <RecurrenceEditor
+            value={recurrence}
+            onChange={changeRecurrence}
+            date={ruleDate || today}
+            canRotate={assigneeIds.length >= 2}
+          />
+        </Card>
+      )}
 
       <Card>
         <div className="space-y-4">

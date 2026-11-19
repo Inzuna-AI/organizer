@@ -57,6 +57,11 @@ export interface Task extends BaseRecord {
    * Fehlt oder leer = keine Erinnerung. (Ein altes Feld reminderMin aus v1.1.0 wird ignoriert.)
    */
   reminderTimes?: string[]
+  /**
+   * Zeitraum statt festem Tag (seit v1.4.0, optional): „irgendwann in dieser Woche/diesem Monat“.
+   * startAt ist dann der erste Tag des Zeitraums (Montag bzw. Monatserster, ganztägig), siehe lib/periods.ts.
+   */
+  period?: 'week' | 'month' | null
 }
 
 export interface Occurrence extends BaseRecord {

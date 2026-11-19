@@ -2,6 +2,7 @@
 import type { DataFile, Device, Occurrence, Task } from '@/types/data'
 import { expandRange, isSeries, nextOpen, overdueInstance } from '@/lib/recurrence'
 import { formatDay } from '@/lib/dates'
+import { isPeriodTask, openPeriod, periodLabel, periodRange } from '@/lib/periods'
 import { berlinParts, inQuietHours } from './time'
 
 /** Inhalt einer Push-Nachricht; der Service Worker zeigt sie an. */
@@ -58,11 +59,11 @@ export function eventUrl(eventId: string, date: string | null): string {
   return date ? `#/termine/${eventId}?datum=${date}` : `#/termine/${eventId}`
 }
 
-/** Termine aller Aufgaben im Zeitraum [from, to] (nach tatsächlichem Datum) */
+/** Termine aller Aufgaben im Zeitraum [from, to] (nach tatsächlichem Datum); ohne Zeitraum-Aufgaben (kein fester Tag) */
 export function slotsBetween(data: DataFile, from: string, to: string): Slot[] {
   const out: Slot[] = []
   for (const t of data.tasks) {
-    if (t.deleted || !t.startAt) continue
+    if (t.deleted || !t.startAt || isPeriodTask(t)) continue
     if (isSeries(t)) {
       for (const i of expandRange(t, data.occurrences, from, to)) {
         out.push({ task: t, date: i.date, startAt: i.startAt, allDay: i.allDay, status: i.status, assigneeIds: i.assigneeIds })
@@ -88,7 +89,7 @@ export function slotsBetween(data: DataFile, from: string, to: string): Slot[] {
 export function overdueSlots(data: DataFile, today: string): Slot[] {
   const out: Slot[] = []
   for (const t of data.tasks) {
-    if (t.deleted || !t.startAt) continue
+    if (t.deleted || !t.startAt || isPeriodTask(t)) continue
     if (isSeries(t)) {
       const i = overdueInstance(t, data.occurrences, today)
       if (i) out.push({ task: t, date: i.date, startAt: i.startAt, allDay: i.allDay, status: 'open', assigneeIds: i.assigneeIds })
@@ -102,7 +103,7 @@ export function overdueSlots(data: DataFile, today: string): Slot[] {
 /** Wer ist aktuell zuständig? Bei Serien die Personen des nächsten offenen Termins. */
 export function currentAssignees(t: Task, occurrences: Occurrence[], today: string): { ids: string[]; date: string | null } {
   if (!isSeries(t)) return { ids: t.assigneeIds, date: null }
-  const i = nextOpen(t, occurrences, today)
+  const i = isPeriodTask(t) ? openPeriod(t, occurrences, today) : nextOpen(t, occurrences, today)
   return i ? { ids: i.assigneeIds, date: i.date } : { ids: [], date: null }
 }
 
@@ -134,4 +135,9 @@ export function listTitles(titles: string[], max = 3): string {
   const uniq = [...new Set(titles)]
   if (uniq.length <= max) return uniq.join(', ')
   return `${uniq.slice(0, max).join(', ')} und ${uniq.length - max} weitere`
+}
+
+/** „Diese Woche“, „Dezember“ … für Zeitraum-Aufgaben (start = erster Tag des Zeitraums) */
+export function periodSlotLabel(t: Task, start: string, today: string): string {
+  return periodLabel(periodRange(t, start), t.period ?? 'week', today)
 }

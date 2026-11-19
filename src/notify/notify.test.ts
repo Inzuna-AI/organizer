@@ -459,3 +459,48 @@ describe('Termine', () => {
     expect(() => reminderRun(old as DataFile, emptyState(), NOON)).not.toThrow()
   })
 })
+
+describe('Aufgaben mit Zeitraum', () => {
+  const week = task({ id: 'w', title: 'Fenster', startAt: '2026-11-16', allDay: true, period: 'week', assigneeIds: [ME], updatedAt: T1 })
+
+  it('neue Zeitraum-Aufgabe: „Diese Woche“ statt Datum', () => {
+    const msgs = changeRun(data(), data({ tasks: [week] }), NOON)
+    expect(msgs[0].payload).toMatchObject({ title: 'Dir zugewiesen', body: 'Fenster · Diese Woche' })
+  })
+
+  it('Rotation: nach dem Erledigen ist die andere Person für den nächsten Zeitraum zuständig', () => {
+    const series = task({
+      id: 's',
+      title: 'Bad',
+      startAt: '2026-11-02',
+      allDay: true,
+      period: 'week',
+      recurrenceRule: 'FREQ=WEEKLY;BYDAY=MO',
+      rotation: true,
+      assigneeIds: [ME, LENA],
+      createdBy: ME,
+      updatedBy: ME,
+    })
+    // Zeiträume: 02.11. ME, 09.11. LENA, 16.11. ME (läuft), 23.11. LENA
+    const done: Occurrence = {
+      id: 's:2026-11-16', taskId: 's', originalDate: '2026-11-16', movedTo: null, status: 'done',
+      completedAt: T1, completedBy: ME, assigneeId: null, updatedAt: T1, deleted: false, createdBy: ME, updatedBy: ME,
+    }
+    const prev = data({ tasks: [series] })
+    const msgs = changeRun(prev, { ...prev, occurrences: [done] }, NOON)
+    const lena = msgs.find((m) => m.device.personId === LENA)
+    // „erledigt“ und „dir zugewiesen“ (für die nächste Woche) in einer Nachricht
+    expect(lena?.payload.body).toBe('1 dir zugewiesen · 1 erledigt')
+    expect(msgs.find((m) => m.device.personId === ME)).toBeUndefined()
+  })
+
+  it('keine Erinnerungen und nicht in der Zusammenfassung', () => {
+    const monday = task({ ...week, reminderTimes: ['0@09:00'] })
+    const d = data({ tasks: [monday], devices: [device('d-me', ME)] })
+    // Montag 16.11., 09:05 Berlin
+    const run = reminderRun(d, emptyState(), new Date('2026-11-16T08:05:00Z'))
+    expect(run.messages).toEqual([])
+    // Nach Ende der Woche auch nicht als überfällig
+    expect(reminderRun(d, emptyState(), new Date('2026-11-24T07:05:00Z')).messages).toEqual([])
+  })
+})

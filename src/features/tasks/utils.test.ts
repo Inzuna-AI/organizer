@@ -7,7 +7,9 @@ import {
   filterTasks,
   formatDuration,
   groupByDay,
+  groupByPeriod,
   isOverdue,
+  periodChoices,
   sortTasks,
   taskDate,
   taskTime,
@@ -208,5 +210,75 @@ describe('Serien in Listen', () => {
     occs = upsertOccurrence(occs, 't', '2026-11-21', 'p2', { status: 'open' })
     expect(occs).toHaveLength(1)
     expect(occs[0]).toMatchObject({ id: 't:2026-11-21', status: 'open', updatedBy: 'p2' })
+  })
+})
+
+describe('Aufgaben mit Zeitraum', () => {
+  // 19.11.2026 = Donnerstag, Woche 16.–22.11.
+  const week = task({ title: 'Fenster', startAt: '2026-11-16', allDay: true, period: 'week' })
+  const month = task({ title: 'Keller', startAt: '2026-11-01', allDay: true, period: 'month' })
+  const nextMonth = task({ title: 'Garage', startAt: '2026-12-01', allDay: true, period: 'month' })
+  const past = task({ title: 'Altpapier', startAt: '2026-11-09', allDay: true, period: 'week' })
+  const series = task({
+    title: 'Bad',
+    startAt: '2026-11-02',
+    allDay: true,
+    period: 'week',
+    recurrenceRule: 'FREQ=WEEKLY;BYDAY=MO',
+  })
+  const fixed = task({ title: 'Müll', startAt: '2026-11-19' })
+  const all = listInstances([week, month, nextMonth, past, series, fixed], [], TODAY)
+
+  it('eigene Ansicht, nicht unter Geplant', () => {
+    const f = { roomId: null, personId: null, mineOnly: false, meId: null }
+    expect(filterTasks(all, { ...f, view: 'planned' }).map((t) => t.title)).toEqual(['Müll'])
+    expect(filterTasks(all, { ...f, view: 'period' }).map((t) => t.title).sort()).toEqual(
+      ['Altpapier', 'Bad', 'Fenster', 'Garage', 'Keller'],
+    )
+  })
+
+  it('überfällig erst nach Ende des Zeitraums, Serien verfallen still', () => {
+    expect(isOverdue(week, TODAY)).toBe(false)
+    expect(isOverdue(week, '2026-11-23')).toBe(true)
+    expect(isOverdue(past, TODAY)).toBe(true)
+    // Serie: nur der laufende Zeitraum, nichts überfällig
+    expect(all.filter((t) => t.title === 'Bad').map((t) => t.occurrenceDate)).toEqual(['2026-11-16'])
+  })
+
+  it('Gruppen: überfällig, laufend, kommend', () => {
+    const groups = groupByPeriod(all.filter((t) => t.period), TODAY)
+    expect(groups.map((g) => [g.label, g.tasks.map((t) => t.title).sort()])).toEqual([
+      ['Überfällig', ['Altpapier']],
+      ['Diese Woche', ['Bad', 'Fenster']],
+      ['November', ['Keller']],
+      ['Dezember · ab Di, 01.12.', ['Garage']],
+    ])
+  })
+
+  it('Heute: eigener Abschnitt, nicht bei „heute“ oder „morgen“', () => {
+    const b = todayBuckets(all, TODAY, { mineOnly: false, meId: null }, sameDay)
+    expect(b.today.map((t) => t.title)).toEqual(['Müll'])
+    expect(b.period.map((t) => t.title)).toEqual(['Bad', 'Fenster', 'Keller'])
+    expect(b.overdue.map((t) => t.title)).toEqual(['Altpapier'])
+    // Am Montag der Woche erscheint die Aufgabe nicht unter „Aufgaben heute“
+    const monday = todayBuckets(all, '2026-11-16', { mineOnly: false, meId: null }, sameDay)
+    expect(monday.today.map((t) => t.title)).toEqual([])
+  })
+
+  it('Auswahl im Formular', () => {
+    expect(periodChoices('week', TODAY, 3).map((c) => c.label)).toEqual([
+      'Diese Woche (16.11.–22.11.)',
+      'Nächste Woche (23.11.–29.11.)',
+      '30.11.–06.12.',
+    ])
+    expect(periodChoices('month', TODAY, 3).map((c) => [c.from, c.label])).toEqual([
+      ['2026-11-01', 'November'],
+      ['2026-12-01', 'Dezember'],
+      ['2027-01-01', 'Januar 2027'],
+    ])
+  })
+
+  it('ohne Datum kein Zeitraum', () => {
+    expect(createTask({ ...week, startAt: null, period: 'week' }, null).period).toBeNull()
   })
 })

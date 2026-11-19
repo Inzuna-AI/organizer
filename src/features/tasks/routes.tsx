@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { berlinDateString, formatDateTime, formatDay } from '@/lib/dates'
 import { describeRule, isFixedSeries, isSeries, occurrenceId } from '@/lib/recurrence'
 import { loadPref, savePref } from '@/lib/storage'
+import { describePeriodRepeat, isPeriodTask, periodInterval, periodLabel, periodRange, untilLabel } from '@/lib/periods'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ChoiceDialog } from '@/components/ui/ChoiceDialog'
@@ -15,16 +16,27 @@ import { taskActions, useOccurrences, useTask, useTaskInstance, useTaskInstances
 import { TaskFilters, type FilterValue } from './components/TaskFilters'
 import { TaskForm } from './components/TaskForm'
 import { TaskItem } from './components/TaskItem'
-import { filterTasks, groupByDay, instanceKey, inView, matchesFilter, type TaskInput, type TaskView } from './utils'
+import {
+  filterTasks,
+  groupByDay,
+  groupByPeriod,
+  instanceKey,
+  inView,
+  matchesFilter,
+  type TaskInput,
+  type TaskView,
+} from './utils'
 
 const VIEWS: Array<{ key: TaskView; label: string; param: string }> = [
   { key: 'planned', label: 'Geplant', param: 'geplant' },
+  { key: 'period', label: 'Zeitraum', param: 'zeitraum' },
   { key: 'inbox', label: 'Inbox', param: 'inbox' },
   { key: 'done', label: 'Erledigt', param: 'erledigt' },
 ]
 
 const EMPTY_TEXT: Record<TaskView, string> = {
   planned: 'Keine geplanten Aufgaben.',
+  period: 'Keine Aufgaben mit Zeitraum. Hier landen Aufgaben für „irgendwann diese Woche“ oder „diesen Monat“.',
   inbox: 'Die Inbox ist leer. Aufgaben ohne Datum landen hier.',
   done: 'Noch nichts erledigt.',
 }
@@ -48,7 +60,7 @@ export function TasksPage() {
   const fullFilter = { ...filter, meId }
   const list = useMemo(() => filterTasks(tasks, { ...fullFilter, view }), [tasks, view, fullFilter.roomId, fullFilter.personId, fullFilter.mineOnly, meId]) // eslint-disable-line react-hooks/exhaustive-deps
   const counts = useMemo(() => {
-    const c: Record<TaskView, number> = { planned: 0, inbox: 0, done: 0 }
+    const c: Record<TaskView, number> = { planned: 0, period: 0, inbox: 0, done: 0 }
     for (const t of tasks) {
       if (!matchesFilter(t, fullFilter)) continue
       for (const v of VIEWS) if (inView(t, v.key)) c[v.key]++
@@ -56,12 +68,12 @@ export function TasksPage() {
     return c
   }, [tasks, fullFilter.roomId, fullFilter.personId, fullFilter.mineOnly, meId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const groups = view === 'planned' ? groupByDay(list, today) : null
+  const groups = view === 'planned' ? groupByDay(list, today) : view === 'period' ? groupByPeriod(list, today) : null
   const filterActive = !!(filter.roomId || filter.personId || filter.mineOnly)
 
   return (
     <div className="space-y-4 p-4">
-      <div className="grid grid-cols-3 rounded-xl bg-slate-200 p-1" role="tablist" aria-label="Ansicht">
+      <div className="grid grid-cols-4 rounded-xl bg-slate-200 p-1" role="tablist" aria-label="Ansicht">
         {VIEWS.map((v) => (
           <button
             key={v.key}
@@ -111,7 +123,10 @@ export function TasksPage() {
         </ul>
       )}
 
-      <Fab to={view === 'inbox' ? '/aufgaben/neu?inbox=1' : '/aufgaben/neu'} label="Neue Aufgabe" />
+      <Fab
+        to={view === 'inbox' ? '/aufgaben/neu?inbox=1' : view === 'period' ? '/aufgaben/neu?zeitraum=1' : '/aufgaben/neu'}
+        label="Neue Aufgabe"
+      />
     </div>
   )
 }
@@ -128,7 +143,12 @@ export function NewTaskPage() {
   return (
     <div className="p-4">
       <TaskForm
-        defaults={{ date, time: params.get('uhrzeit') ?? '', assigneeIds: meId ? [meId] : [] }}
+        defaults={{
+          date,
+          time: params.get('uhrzeit') ?? '',
+          assigneeIds: meId ? [meId] : [],
+          period: params.has('zeitraum'),
+        }}
         submitLabel="Aufgabe anlegen"
         onSubmit={(input) => {
           taskActions.create(input)
@@ -168,11 +188,13 @@ export function EditTaskPage() {
   }
 
   const series = isSeries(task)
+  const periodTask = isPeriodTask(task)
   const fixed = isFixedSeries(task)
   const inst = instance && instance.occurrenceDate ? instance : null
   const instDate = inst?.occurrenceDate ?? null
   // Fester Rhythmus + Termin: Formular zeigt Datum/Uhrzeit des Termins, die Regel bleibt am Serienstart
-  const instanceMode = fixed && !!inst
+  // (Zeitraum-Serien nicht: Zeitraum und Rhythmus gelten immer für die Serie)
+  const instanceMode = fixed && !!inst && !periodTask
   const formInitial = instanceMode ? { ...task, startAt: inst.startAt, allDay: inst.allDay } : task
   const editor = task.updatedBy ? persons.get(task.updatedBy)?.name : null
   const done = task.status === 'done'
@@ -213,7 +235,10 @@ export function EditTaskPage() {
   function onDelete(scope: Scope) {
     if (!task) return
     if (scope === 'one' && instDate) {
-      if (window.confirm('Diesen Termin löschen? Die Serie bleibt bestehen.')) {
+      const q = periodTask
+        ? 'Diesen Zeitraum auslassen? Die Serie bleibt bestehen, der nächste Zeitraum erscheint.'
+        : 'Diesen Termin löschen? Die Serie bleibt bestehen.'
+      if (window.confirm(q)) {
         taskActions.skipInstance(task.id, instDate)
         goBack()
       }
@@ -229,6 +254,8 @@ export function EditTaskPage() {
   const instDone = inst?.status === 'done'
   const instTime = inst && !inst.allDay ? inst.startAt!.slice(11, 16) : null
   const completedBy = inst?.completedBy ? persons.get(inst.completedBy)?.name : null
+  const today = berlinDateString()
+  const instRange = periodTask && instDate ? periodRange(task, instDate) : null
 
   return (
     <div className="space-y-4 p-4">
@@ -237,20 +264,33 @@ export function EditTaskPage() {
           <div className="space-y-3">
             <div>
               <p className="text-xs text-slate-500">
-                ↻ {describeRule(task.recurrenceRule!, task.startAt!.slice(0, 10), task.recurrenceMode)}
+                ↻{' '}
+                {periodTask
+                  ? describePeriodRepeat(task.period!, periodInterval(task))
+                  : describeRule(task.recurrenceRule!, task.startAt!.slice(0, 10), task.recurrenceMode)}
               </p>
-              <p className="font-semibold">
-                Termin: {formatDay(inst.startAt!.slice(0, 10))}
-                {instTime ? `, ${instTime} Uhr` : ''}
-                {inst.moved && <span className="font-normal text-slate-500"> (verschoben)</span>}
-              </p>
+              {instRange ? (
+                <p className="font-semibold">
+                  Zeitraum: {periodLabel(instRange, task.period!, today)}
+                  <span className="font-normal text-slate-500">
+                    {' '}
+                    ({instRange.from > today ? `ab ${formatDay(instRange.from, today)}` : untilLabel(instRange.to, today)})
+                  </span>
+                </p>
+              ) : (
+                <p className="font-semibold">
+                  Termin: {formatDay(inst.startAt!.slice(0, 10))}
+                  {instTime ? `, ${instTime} Uhr` : ''}
+                  {inst.moved && <span className="font-normal text-slate-500"> (verschoben)</span>}
+                </p>
+              )}
             </div>
             <Button
               variant={instDone ? 'secondary' : 'primary'}
               block
               onClick={() => taskActions.setInstanceDone(task.id, instDate, !instDone)}
             >
-              {instDone ? '↺ Wieder öffnen' : '✓ Termin erledigt'}
+              {instDone ? '↺ Wieder öffnen' : periodTask ? '✓ Erledigt' : '✓ Termin erledigt'}
             </Button>
             {instDone && inst.completedAt && (
               <p className="-mt-1 text-center text-xs text-slate-500">
@@ -306,10 +346,10 @@ export function EditTaskPage() {
         onSubmit={submit}
       />
 
-      {instanceMode && !instDone ? (
+      {(instanceMode || (periodTask && inst)) && !instDone ? (
         <div className="grid grid-cols-2 gap-2">
           <Button variant="danger" onClick={() => onDelete('one')}>
-            Diesen Termin löschen
+            {periodTask ? 'Diesmal auslassen' : 'Diesen Termin löschen'}
           </Button>
           <Button variant="danger" onClick={() => onDelete('series')}>
             Ganze Serie löschen

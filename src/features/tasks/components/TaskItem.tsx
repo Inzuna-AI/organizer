@@ -3,7 +3,17 @@ import { berlinDateString, formatDay } from '@/lib/dates'
 import { PersonBadge, usePersonMap } from '@/features/persons'
 import { RoomBadge, useRoomMap } from '@/features/rooms'
 import { taskActions } from '../store'
-import { checklistProgress, formatDuration, isOverdue, taskDate, taskLink, taskTime, type TaskInstance } from '../utils'
+import { periodLabel, untilLabel } from '@/lib/periods'
+import {
+  checklistProgress,
+  formatDuration,
+  isOverdue,
+  taskDate,
+  taskLink,
+  taskPeriod,
+  taskTime,
+  type TaskInstance,
+} from '../utils'
 
 interface Props {
   task: TaskInstance
@@ -21,6 +31,7 @@ export function TaskItem({ task, showDate = false }: Props) {
   const date = taskDate(task)
   const time = taskTime(task)
   const progress = checklistProgress(task.checklist)
+  const period = taskPeriod(task)
 
   return (
     <li
@@ -68,8 +79,14 @@ export function TaskItem({ task, showDate = false }: Props) {
           )}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-          {(showDate || overdue) && date && (
-            <span className={overdue ? 'font-medium text-red-600' : ''}>{formatDay(date, today)}</span>
+          {period ? (
+            <span className={overdue ? 'font-medium text-red-600' : ''}>
+              {showDate ? `${periodLabel(period, task.period ?? 'week', today)} · ` : ''}
+              {period.from > today ? `ab ${formatDay(period.from, today)}` : untilLabel(period.to, today)}
+            </span>
+          ) : (
+            (showDate || overdue) &&
+            date && <span className={overdue ? 'font-medium text-red-600' : ''}>{formatDay(date, today)}</span>
           )}
           {time && <span>{time} Uhr</span>}
           {task.recurrenceRule && (

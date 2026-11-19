@@ -1,6 +1,7 @@
 // Kalender: reine Logik (Aufgabe → Kalendereintrag, Verschieben → neue Zeit).
 import type { Occurrence, Person, Room } from '@/types/data'
 import { expandRange, isFixedSeries, isSeries } from '@/lib/recurrence'
+import { isPeriodTask } from '@/lib/periods'
 import { addDays } from '@/lib/dates'
 import { isFamily, type EventInstance } from '@/lib/events'
 import { toTaskInstance, type TaskInstance } from '@/features/tasks'
@@ -128,7 +129,8 @@ export interface VisibleRange {
 export function tasksToEvents(tasks: TaskInstance[], ctx: EventContext, range?: VisibleRange): TaskEvent[] {
   const out: TaskEvent[] = []
   for (const t of tasks) {
-    if (t.deleted) continue
+    // Aufgaben mit Zeitraum haben keinen festen Tag und stehen nicht im Kalender
+    if (t.deleted || isPeriodTask(t)) continue
     if (isSeries(t) && range) {
       for (const i of expandRange(t, range.occurrences, range.from, range.to)) {
         const e = taskToEvent(toTaskInstance(t, i), ctx)

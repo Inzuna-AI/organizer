@@ -3343,10 +3343,15 @@ function berlinDateString(d = /* @__PURE__ */ new Date()) {
 
 // src/lib/recurrence.ts
 var import_rrule = __toESM(require_rrule(), 1);
+var CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
 var pad = (n) => String(n).padStart(2, "0");
 function ymd(date) {
   const [y, m, d] = date.slice(0, 10).split("-").map(Number);
   return [y, m, d];
+}
+function weekdayIndex(date) {
+  const [y, m, d] = ymd(date);
+  return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
 }
 function shiftDate(date, days) {
   const [y, m, d] = ymd(date);
@@ -3366,6 +3371,49 @@ function timeOf(startAt, allDay) {
 }
 function withTime(date, time) {
   return time ? `${date}T${time}` : date;
+}
+function defaultSpec(freq, startDate) {
+  return {
+    freq,
+    interval: 1,
+    byWeekday: freq === "weekdays" ? [0, 1, 2, 3, 4] : [weekdayIndex(startDate)],
+    monthly: "day",
+    until: null
+  };
+}
+function ruleParts(rule) {
+  const map = /* @__PURE__ */ new Map();
+  for (const part of rule.replace(/^RRULE:/i, "").split(";")) {
+    const [k, v] = part.split("=");
+    if (k && v !== void 0) map.set(k.trim().toUpperCase(), v.trim().toUpperCase());
+  }
+  return map;
+}
+function parseRule(rule, startDate) {
+  const p = ruleParts(rule);
+  const interval = Math.max(1, Number(p.get("INTERVAL") ?? 1) || 1);
+  const byday = p.get("BYDAY")?.split(",").filter(Boolean) ?? [];
+  const untilRaw = p.get("UNTIL");
+  const until = untilRaw ? `${untilRaw.slice(0, 4)}-${untilRaw.slice(4, 6)}-${untilRaw.slice(6, 8)}` : null;
+  const spec = { ...defaultSpec("daily", startDate), interval, until };
+  switch (p.get("FREQ")) {
+    case "WEEKLY": {
+      const days = byday.map((c) => CODES.indexOf(c.slice(-2))).filter((i) => i >= 0);
+      if (interval === 1 && days.length === 5 && [0, 1, 2, 3, 4].every((i) => days.includes(i))) {
+        return { ...spec, freq: "weekdays", byWeekday: [0, 1, 2, 3, 4] };
+      }
+      return { ...spec, freq: "weekly", byWeekday: days.length ? days.sort() : [weekdayIndex(startDate)] };
+    }
+    case "MONTHLY": {
+      const ord = byday[0]?.match(/^([+-]?\d+)/)?.[1];
+      const monthly = !ord ? "day" : Number(ord) < 0 ? "last" : "nth";
+      return { ...spec, freq: "monthly", monthly };
+    }
+    case "YEARLY":
+      return { ...spec, freq: "yearly" };
+    default:
+      return { ...spec, freq: "daily" };
+  }
 }
 function isSeries(t) {
   return !!t.recurrenceRule && !!t.startAt;
@@ -3647,6 +3695,87 @@ function involves(e, personId) {
   return e.personIds.length === 0 || !!personId && e.personIds.includes(personId);
 }
 
+// src/lib/periods.ts
+var MONTHS = [
+  "Januar",
+  "Februar",
+  "M\xE4rz",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember"
+];
+var pad3 = (n) => String(n).padStart(2, "0");
+function isPeriodTask(t) {
+  return !!t.period && !!t.startAt;
+}
+function periodStartOf(date, unit) {
+  if (unit === "month") return `${date.slice(0, 7)}-01`;
+  return addDays(date.slice(0, 10), -weekdayIndex(date));
+}
+function addMonthStarts(start, n) {
+  const total = Number(start.slice(0, 4)) * 12 + Number(start.slice(5, 7)) - 1 + n;
+  return `${Math.floor(total / 12)}-${pad3(total % 12 + 1)}-01`;
+}
+function nextPeriodStart(start, unit, n = 1) {
+  return unit === "week" ? addDays(start, 7 * n) : addMonthStarts(start, n);
+}
+function periodInterval(t) {
+  if (!t.recurrenceRule || !t.startAt) return 1;
+  return parseRule(t.recurrenceRule, t.startAt.slice(0, 10)).interval;
+}
+function periodRange(t, start) {
+  const unit = t.period ?? "week";
+  return { from: start, to: addDays(nextPeriodStart(start, unit, periodInterval(t)), -1) };
+}
+function shortDate(date, today) {
+  const s = `${date.slice(8, 10)}.${date.slice(5, 7)}.`;
+  return date.slice(0, 4) === today.slice(0, 4) ? s : `${s}${date.slice(0, 4)}`;
+}
+function monthName(date, today) {
+  const name = MONTHS[Number(date.slice(5, 7)) - 1];
+  return date.slice(0, 4) === today.slice(0, 4) ? name : `${name} ${date.slice(0, 4)}`;
+}
+function periodLabel(range, unit, today) {
+  const { from, to } = range;
+  if (unit === "month") {
+    const last = `${to.slice(0, 7)}-01`;
+    if (last === from) return monthName(from, today);
+    return `${monthName(from, today)}\u2013${monthName(last, today)}`;
+  }
+  const thisWeek = periodStartOf(today, "week");
+  if (to === addDays(from, 6)) {
+    if (from === thisWeek) return "Diese Woche";
+    if (from === addDays(thisWeek, 7)) return "N\xE4chste Woche";
+  }
+  return `${shortDate(from, today)}\u2013${shortDate(to, today)}`;
+}
+function currentPeriod(t, occurrences, today) {
+  if (!isPeriodTask(t) || !isSeries(t)) return null;
+  const n = periodInterval(t);
+  const reach = t.period === "month" ? 31 * n : 7 * n;
+  const start = datesBetween(t, addDays(today, -reach), today).at(-1);
+  if (!start || periodRange(t, start).to < today) return null;
+  return instanceAt(t, occurrences, start);
+}
+function upcomingPeriod(t, occurrences, today) {
+  for (const date of datesBetween(t, addDays(today, 1), addDays(today, 10 * 366), 10)) {
+    const inst = instanceAt(t, occurrences, date);
+    if (inst && inst.status === "open") return inst;
+  }
+  return null;
+}
+function openPeriod(t, occurrences, today) {
+  const current = currentPeriod(t, occurrences, today);
+  if (current && current.status === "open") return current;
+  return upcomingPeriod(t, occurrences, today);
+}
+
 // src/notify/time.ts
 var fmt = new Intl.DateTimeFormat("en-CA", {
   timeZone: TIME_ZONE,
@@ -3715,7 +3844,7 @@ function eventUrl(eventId, date) {
 function slotsBetween(data, from, to) {
   const out = [];
   for (const t of data.tasks) {
-    if (t.deleted || !t.startAt) continue;
+    if (t.deleted || !t.startAt || isPeriodTask(t)) continue;
     if (isSeries(t)) {
       for (const i of expandRange(t, data.occurrences, from, to)) {
         out.push({ task: t, date: i.date, startAt: i.startAt, allDay: i.allDay, status: i.status, assigneeIds: i.assigneeIds });
@@ -3739,7 +3868,7 @@ function slotsBetween(data, from, to) {
 function overdueSlots(data, today) {
   const out = [];
   for (const t of data.tasks) {
-    if (t.deleted || !t.startAt) continue;
+    if (t.deleted || !t.startAt || isPeriodTask(t)) continue;
     if (isSeries(t)) {
       const i = overdueInstance(t, data.occurrences, today);
       if (i) out.push({ task: t, date: i.date, startAt: i.startAt, allDay: i.allDay, status: "open", assigneeIds: i.assigneeIds });
@@ -3751,7 +3880,7 @@ function overdueSlots(data, today) {
 }
 function currentAssignees(t, occurrences, today) {
   if (!isSeries(t)) return { ids: t.assigneeIds, date: null };
-  const i = nextOpen(t, occurrences, today);
+  const i = isPeriodTask(t) ? openPeriod(t, occurrences, today) : nextOpen(t, occurrences, today);
   return i ? { ids: i.assigneeIds, date: i.date } : { ids: [], date: null };
 }
 function relevant(device, roomId, assigneeIds, opts = {}) {
@@ -3770,14 +3899,18 @@ function listTitles(titles, max = 3) {
   if (uniq.length <= max) return uniq.join(", ");
   return `${uniq.slice(0, max).join(", ")} und ${uniq.length - max} weitere`;
 }
+function periodSlotLabel(t, start, today) {
+  return periodLabel(periodRange(t, start), t.period ?? "week", today);
+}
 
 // src/notify/changes.ts
-var WATCHED = ["title", "description", "startAt", "allDay", "durationMin", "roomId", "priority", "recurrenceRule", "recurrenceMode"];
+var WATCHED = ["title", "description", "startAt", "allDay", "durationMin", "roomId", "priority", "recurrenceRule", "recurrenceMode", "period"];
 var EVENT_WATCHED = ["title", "location", "startAt", "endAt", "allDay", "personIds", "recurrenceRule", "exceptions"];
 function nextEventInstance(e, today) {
   return eventsBetween([e], today, addDays(today, 400))[0] ?? eventsBetween([e], e.startAt.slice(0, 10), e.startAt.slice(0, 10))[0] ?? null;
 }
 function whenOf(t, occurrences, date, today) {
+  if (isPeriodTask(t)) return periodSlotLabel(t, date ?? t.startAt.slice(0, 10), today);
   if (isSeries(t) && date) {
     const i = instanceAt(t, occurrences, date);
     return i ? slotLabel(i.startAt, i.allDay, today) : void 0;
