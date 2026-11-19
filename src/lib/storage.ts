@@ -51,6 +51,15 @@ export const saveDevice = (d: DeviceInfo | null) => write(KEY_DEVICE, d)
 export const loadCache = () => read<CacheState>(KEY_CACHE)
 export const saveCache = (c: CacheState | null) => write(KEY_CACHE, c)
 
+/** Kleine Bedien-Einstellungen pro Gerät (Filter, Umschalter). Nie für Daten verwenden. */
+export function loadPref<T>(name: string, fallback: T): T {
+  return read<T>(`organizer.pref.${name}`) ?? fallback
+}
+
+export function savePref(name: string, value: unknown): void {
+  write(`organizer.pref.${name}`, value)
+}
+
 /** Token maskiert anzeigen: ••••abcd */
 export function maskToken(token: string): string {
   if (!token) return ''

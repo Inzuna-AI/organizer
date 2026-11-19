@@ -132,6 +132,16 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 })
 
+/** Person-ID dieses Geräts für createdBy/updatedBy (auch außerhalb von React nutzbar). */
+export function currentPersonId(): string | null {
+  return useAppStore.getState().device?.personId ?? null
+}
+
+/** Daten ändern; ohne Gerät/Sync passiert nichts. */
+export function updateData(mutator: (data: DataFile) => DataFile): boolean {
+  return useAppStore.getState().update(mutator)
+}
+
 /** Aktuelle Person dieses Geräts („Das bin ich“). */
 export function useMe() {
   return useAppStore((s) => s.data?.persons.find((p) => p.id === s.device?.personId) ?? null)

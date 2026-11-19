@@ -36,6 +36,25 @@ export function tombstone<T extends BaseRecord>(rec: T, personId: string | null)
   return touch(rec, personId, { deleted: true } as Partial<T>)
 }
 
+/** Datensatz in einer Liste ersetzen oder anhängen (unveränderlich). */
+export function upsert<T extends BaseRecord>(list: T[], rec: T): T[] {
+  const i = list.findIndex((r) => r.id === rec.id)
+  if (i < 0) return [...list, rec]
+  const copy = [...list]
+  copy[i] = rec
+  return copy
+}
+
+/** Datensatz per id ändern; unbekannte id → Liste unverändert. */
+export function updateById<T extends BaseRecord>(
+  list: T[],
+  id: string,
+  personId: string | null,
+  change: Partial<T> | ((rec: T) => Partial<T>),
+): T[] {
+  return list.map((r) => (r.id === id ? touch(r, personId, typeof change === 'function' ? change(r) : change) : r))
+}
+
 /** Nur nicht gelöschte Datensätze. */
 export function alive<T extends BaseRecord>(list: T[]): T[] {
   return list.filter((r) => !r.deleted)
