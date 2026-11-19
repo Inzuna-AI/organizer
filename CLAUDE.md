@@ -423,12 +423,14 @@ Hinweise zur Umsetzung: Räume und Personen werden unter Einstellungen → Verwa
 
 Hinweise zur Umsetzung: Vorschläge stammen auch aus bereits entfernten Artikeln (Tombstones, bis sie nach 30 Tagen bereinigt werden). Gibt es keine Liste, legt das erste Hinzufügen automatisch „Einkauf“ an. Während der Einkaufszettel offen ist, setzt die Seite das Polling über `setSyncInterval` auf 10 s.
 
-### Phase 3: Kalender
-- [ ] Tag-, Wochen- und Monatsansicht (FullCalendar)
-- [ ] Einträge in der **Farbe des Raums**, Person als Kürzel-Badge am Eintrag
-- [ ] Umschalter: Farbe nach Raum oder nach Person
-- [ ] **Drag and Drop** zum Verschieben (Datum/Uhrzeit), auch aus der Inbox in den Kalender
-- [ ] Auf dem Handy: Long-Press zum Ziehen, große Touch-Ziele
+### Phase 3: Kalender (`v0.3.0`, abgeschlossen am 19.11.2026)
+- [x] Tag-, Wochen- und Monatsansicht (FullCalendar)
+- [x] Einträge in der **Farbe des Raums**, Person als Kürzel-Badge am Eintrag
+- [x] Umschalter: Farbe nach Raum oder nach Person
+- [x] **Drag and Drop** zum Verschieben (Datum/Uhrzeit), auch aus der Inbox in den Kalender
+- [x] Auf dem Handy: Long-Press zum Ziehen, große Touch-Ziele
+
+Hinweise zur Umsetzung: Kürzel-Badges erscheinen in Woche und Tag; in der Monatsansicht ist dafür zu wenig Platz (dort „Farbe nach Person“ nutzen). Kalenderzeiten sind lokale Gerätezeit; `startAt` wird ohne Zeitzone als lokale Wandzeit gespeichert. Long-Press-Verzögerung 350 ms, Raster 15 Minuten. Ansicht und Farbmodus merkt sich das Gerät (`loadPref`). Wiederholungen (Phase 4) müssen im Kalender als einzelne Termine aus der RRULE berechnet werden; aktuell zeigt `tasksToEvents` nur einmalige Aufgaben.
 
 ### Phase 4: Wiederholungen
 - [ ] Wiederholungs-Editor mit den Mustern oben
