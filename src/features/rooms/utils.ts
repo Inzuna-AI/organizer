@@ -27,4 +27,4 @@ export function nextSortOrder(rooms: Room[]): number {
 }
 
 /** Häufige Icons für Räume */
-export const ROOM_ICONS = ['🍳', '🛁', '🚿', '🛋️', '🛏️', '🚪', '🌿', '🧺', '🧸', '💻', '🚗', '🗑️', '🏠', '🐾', '🪴', '🧹']
+export const ROOM_ICONS = ['🍳', '🛁', '🚿', '🛋️', '🛏️', '🚪', '🌿', '🧺', '🧸', '💻', '🚗', '🗑️', '🏠', '🐾', '🪴', '🧹', '🧘']

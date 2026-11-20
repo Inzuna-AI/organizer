@@ -9,6 +9,8 @@ Ein Eintrag ist die Beschreibung des GitHub Releases.
 - Heute: Alle Abschnitte (Termine, Überfällig, Aufgaben heute, Im Zeitraum, Erledigt heute) lassen sich per Tipp auf die Überschrift ein- und ausklappen. Das Gerät merkt sich die Auswahl
 - Wiederkehrende Aufgaben: Auf der Seite eines Termins mit „‹ Vorheriger“ und „Nächster ›“ durch die Serie blättern. So lässt sich ein versehentlich abgehakter früherer Termin bzw. Zeitraum wieder öffnen
 
+- Räume: neues Symbol 🧘 für Selfcare in der Icon-Auswahl
+
 ### Geändert
 - Kalender: Die Inbox ist standardmäßig eingeklappt, damit der Kalender mehr Platz hat. Aufgeklappt bleibt sie, bis man sie wieder einklappt
 
