@@ -552,6 +552,7 @@ Hinweise zur Umsetzung:
 - [x] Serien-Termin-Seite: „‹ Vorheriger / Nächster ›“ (`neighborDates` in `lib/recurrence.ts`, überspringt ausgelassene; after_completion: erledigte + aktueller), damit versehentlich Abgehaktes wieder geöffnet werden kann
 - [x] Kalender: Inbox standardmäßig eingeklappt (Pref `calendarInboxOpen`)
 - [x] Raum-Symbol 🧘 (Selfcare)
+- [x] `v1.6.0`: Reihenfolge der Abschnitte in Heute einstellbar („⇅ Reihenfolge anpassen“, Bottom-Sheet mit ↑/↓, Pref `todayOrder`). Logik in `features/today/utils.ts` (`normalizeOrder` ergänzt neue Abschnitte an ihrer Standardposition)
 
 ### Später / optional
 - **App-Badge** (Zahl am Homescreen-Symbol) für fällige Aufgaben, ohne Zeitraum-Aufgaben. Besprochen am 20.11.2026, zurückgestellt. Idee: `navigator.setAppBadge` in der App bei Änderungen, im Service Worker aus der Push-Payload (Zahl pro Person von `notify.mjs`). iPhone ab iOS 16.4 (Homescreen + Push-Berechtigung, keine stillen Pushes); Samsung/Chrome zeigt nur die Zahl ungelesener Benachrichtigungen. Offen: Termine mitzählen? Nur meine oder alle? Schalter pro Gerät
