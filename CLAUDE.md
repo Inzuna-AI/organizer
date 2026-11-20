@@ -547,7 +547,14 @@ Hinweise zur Umsetzung:
 - Nicht im Kalender, keine Erinnerungen (`ReminderField` ausgeblendet), nicht in der täglichen Zusammenfassung (`slotsBetween`/`overdueSlots` überspringen sie). Benachrichtigungen nennen den Zeitraum („· Diese Woche“); `period` ist in `WATCHED`. Rotation nach Position des Zeitraums in der Serie.
 - Formular: Umschalter „Fester Tag / Zeitraum“ (`PeriodField`), „Neu“ mit `?zeitraum=1` startet im Zeitraum-Modus. Auswahl: 8 Wochen, 12 Monate, 6 Quartale, 4 Halbjahre, 3 Jahre ab heute. Kein „Nur diesen Termin“; pro Zeitraum gibt es „Diesmal auslassen“ und „Diesmal zuständig“.
 
+### Komfort (`v1.5.0`, abgeschlossen am 20.11.2026)
+- [x] Heute: alle Abschnitte einklappbar (Pref `todayCollapsed`, Baustein `components/ui/CollapsibleSection.tsx`)
+- [x] Serien-Termin-Seite: „‹ Vorheriger / Nächster ›“ (`neighborDates` in `lib/recurrence.ts`, überspringt ausgelassene; after_completion: erledigte + aktueller), damit versehentlich Abgehaktes wieder geöffnet werden kann
+- [x] Kalender: Inbox standardmäßig eingeklappt (Pref `calendarInboxOpen`)
+- [x] Raum-Symbol 🧘 (Selfcare)
+
 ### Später / optional
+- **App-Badge** (Zahl am Homescreen-Symbol) für fällige Aufgaben, ohne Zeitraum-Aufgaben. Besprochen am 20.11.2026, zurückgestellt. Idee: `navigator.setAppBadge` in der App bei Änderungen, im Service Worker aus der Push-Payload (Zahl pro Person von `notify.mjs`). iPhone ab iOS 16.4 (Homescreen + Push-Berechtigung, keine stillen Pushes); Samsung/Chrome zeigt nur die Zahl ungelesener Benachrichtigungen. Offen: Termine mitzählen? Nur meine oder alle? Schalter pro Gerät
 - Sync mit Google- oder Apple-Kalender (z. B. als ICS-Export)
 - Statistiken (erledigte Aufgaben pro Person/Raum)
 
