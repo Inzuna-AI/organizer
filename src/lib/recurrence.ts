@@ -509,6 +509,55 @@ export function doneInstances(t: SeriesTask, occurrences: Occurrence[]): Instanc
   return out
 }
 
+/**
+ * Vorheriger und nächster Termin der Serie (ursprüngliche Daten), zum Blättern auf der Termin-Seite.
+ * Ausgelassene Termine werden übersprungen. after_completion: erledigte Termine und der aktuelle.
+ */
+export function neighborDates(
+  t: SeriesTask,
+  occurrences: Occurrence[],
+  date: string,
+): { prev: string | null; next: string | null } {
+  if (!isSeries(t)) return { prev: null, next: null }
+  const occs = occurrenceMap(occurrences, t.id)
+  if (t.recurrenceMode === 'after_completion') {
+    const dates = [...occs.values()].filter((o) => o.status === 'done').map((o) => o.originalDate)
+    dates.push(t.startAt!.slice(0, 10))
+    const sorted = [...new Set(dates)].sort()
+    return {
+      prev: sorted.filter((d) => d < date).at(-1) ?? null,
+      next: sorted.find((d) => d > date) ?? null,
+    }
+  }
+  const skipped = (d: string) => occs.get(d)?.status === 'skipped'
+  const rule = rruleOf(t)
+  let prev: string | null = null
+  let cursor = dayStart(date)
+  for (let i = 0; i < 100; i++) {
+    const d = rule.before(cursor, false)
+    if (!d) break
+    const s = floatingDate(d)
+    if (!skipped(s)) {
+      prev = s
+      break
+    }
+    cursor = dayStart(s)
+  }
+  let next: string | null = null
+  cursor = dayEnd(date)
+  for (let i = 0; i < 100; i++) {
+    const d = rule.after(cursor, false)
+    if (!d) break
+    const s = floatingDate(d)
+    if (!skipped(s)) {
+      next = s
+      break
+    }
+    cursor = dayEnd(s)
+  }
+  return { prev, next }
+}
+
 // ---------- Ändern ----------
 
 /** after_completion: nächster Termin = Erledigungsdatum + Intervall, Uhrzeit bleibt. */

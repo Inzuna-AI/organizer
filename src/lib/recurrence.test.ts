@@ -9,6 +9,7 @@ import {
   expandRange,
   instanceAt,
   instanceIndex,
+  neighborDates,
   nextAfterCompletion,
   nextOpen,
   occurrenceId,
@@ -255,5 +256,29 @@ describe('Serie verschieben', () => {
   it('neuer Serienstart um denselben Abstand', () => {
     expect(shiftedSeriesStart('2026-11-07T10:00', '2026-11-21', '2026-11-22T12:30')).toBe('2026-11-08T12:30')
     expect(shiftedSeriesStart('2026-11-07T10:00', '2026-11-21', '2026-11-21')).toBe('2026-11-07')
+  })
+})
+
+describe('Blättern zwischen Terminen', () => {
+  it('fester Rhythmus: vorheriger und nächster Termin, ausgelassene übersprungen', () => {
+    const t = task({ startAt: '2026-11-07T10:00', allDay: false, recurrenceRule: 'FREQ=WEEKLY;BYDAY=SA' })
+    expect(neighborDates(t, [], '2026-11-21')).toEqual({ prev: '2026-11-14', next: '2026-11-28' })
+    expect(neighborDates(t, [occ('2026-11-14', { status: 'skipped' })], '2026-11-21')).toEqual({
+      prev: '2026-11-07',
+      next: '2026-11-28',
+    })
+    expect(neighborDates(t, [], '2026-11-07').prev).toBeNull()
+  })
+
+  it('Zeitraum-Serie (monatlich)', () => {
+    const t = task({ startAt: '2026-10-01', recurrenceRule: 'FREQ=MONTHLY;INTERVAL=1' })
+    expect(neighborDates(t, [], '2026-11-01')).toEqual({ prev: '2026-10-01', next: '2026-12-01' })
+  })
+
+  it('after_completion: erledigte Termine und der aktuelle', () => {
+    const t = task({ startAt: '2026-11-25', recurrenceRule: 'FREQ=DAILY;INTERVAL=3', recurrenceMode: 'after_completion' })
+    const occs = [occ('2026-11-16', { status: 'done' }), occ('2026-11-22', { status: 'done' })]
+    expect(neighborDates(t, occs, '2026-11-25')).toEqual({ prev: '2026-11-22', next: null })
+    expect(neighborDates(t, occs, '2026-11-22')).toEqual({ prev: '2026-11-16', next: '2026-11-25' })
   })
 })

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { berlinDateString, formatDateTime, formatDay } from '@/lib/dates'
-import { describeRule, isFixedSeries, isSeries, occurrenceId } from '@/lib/recurrence'
+import { describeRule, isFixedSeries, isSeries, neighborDates, occurrenceId } from '@/lib/recurrence'
 import { loadPref, savePref } from '@/lib/storage'
 import { describePeriodRepeat, isPeriodTask, periodInterval, periodLabel, periodRange, untilLabel } from '@/lib/periods'
 import { Button } from '@/components/ui/Button'
@@ -166,7 +166,7 @@ type Scope = 'one' | 'series'
 
 export function EditTaskPage() {
   const { id } = useParams()
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const task = useTask(id)
   const date = params.get('datum')
   const instance = useTaskInstance(task, date)
@@ -256,6 +256,9 @@ export function EditTaskPage() {
   const completedBy = inst?.completedBy ? persons.get(inst.completedBy)?.name : null
   const today = berlinDateString()
   const instRange = periodTask && instDate ? periodRange(task, instDate) : null
+  const neighbors = series && instDate ? neighborDates(task, occurrences, instDate) : { prev: null, next: null }
+  const goTo = (d: string) => setParams({ datum: d }, { replace: true })
+  const stepLabel = periodTask ? 'Zeitraum' : 'Termin'
 
   return (
     <div className="space-y-4 p-4">
@@ -284,6 +287,24 @@ export function EditTaskPage() {
                   {inst.moved && <span className="font-normal text-slate-500"> (verschoben)</span>}
                 </p>
               )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="secondary"
+                disabled={!neighbors.prev}
+                onClick={() => neighbors.prev && goTo(neighbors.prev)}
+                aria-label={`Vorheriger ${stepLabel}`}
+              >
+                ‹ Vorheriger
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={!neighbors.next}
+                onClick={() => neighbors.next && goTo(neighbors.next)}
+                aria-label={`Nächster ${stepLabel}`}
+              >
+                Nächster ›
+              </Button>
             </div>
             <Button
               variant={instDone ? 'secondary' : 'primary'}

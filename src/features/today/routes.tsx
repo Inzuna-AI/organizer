@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { berlinDateString, formatLongDate } from '@/lib/dates'
 import { loadPref, savePref } from '@/lib/storage'
 import { FabChoice } from '@/components/ui/FabChoice'
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
 import { involves } from '@/lib/events'
 import { useAppStore, useMe } from '@/store'
 import { instanceKey, TaskItem, todayBuckets, useTaskInstances } from '@/features/tasks'
@@ -17,6 +18,17 @@ export function TodayPage() {
     setMineState(v)
     savePref('todayMineOnly', v)
   }
+
+  // Eingeklappte Abschnitte merkt sich das Gerät
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => loadPref('todayCollapsed', {}))
+  const section = (key: string) => ({
+    open: !collapsed[key],
+    onToggle: () => {
+      const next = { ...collapsed, [key]: !collapsed[key] }
+      setCollapsed(next)
+      savePref('todayCollapsed', next)
+    },
+  })
 
   const today = berlinDateString()
   const b = useMemo(
@@ -56,29 +68,26 @@ export function TodayPage() {
       </div>
 
       {events.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold text-slate-500">Termine heute ({events.length})</h3>
+        <CollapsibleSection title={`Termine heute (${events.length})`} {...section('events')}>
           <ul className="space-y-2">
             {events.map((i) => (
               <EventItem key={i.date ? `${i.event.id}:${i.date}` : i.event.id} instance={i} day={today} />
             ))}
           </ul>
-        </section>
+        </CollapsibleSection>
       )}
 
       {b.overdue.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold text-red-600">Überfällig ({b.overdue.length})</h3>
+        <CollapsibleSection title={`Überfällig (${b.overdue.length})`} tone="text-red-600" {...section('overdue')}>
           <ul className="space-y-2">
             {b.overdue.map((t) => (
               <TaskItem key={instanceKey(t)} task={t} showDate />
             ))}
           </ul>
-        </section>
+        </CollapsibleSection>
       )}
 
-      <section>
-        <h3 className="mb-2 text-sm font-semibold text-slate-500">Aufgaben heute ({b.today.length})</h3>
+      <CollapsibleSection title={`Aufgaben heute (${b.today.length})`} {...section('today')}>
         {b.today.length > 0 ? (
           <ul className="space-y-2">
             {b.today.map((t) => (
@@ -90,19 +99,24 @@ export function TodayPage() {
             {nothing && b.doneToday.length > 0 ? 'Alles erledigt für heute. 🎉' : events.length ? 'Keine Aufgaben für heute.' : 'Für heute steht nichts an.'}
           </p>
         )}
-      </section>
+      </CollapsibleSection>
 
       {b.period.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold text-slate-500">
-            <Link to="/aufgaben?ansicht=zeitraum">Im Zeitraum ({b.period.length})</Link>
-          </h3>
+        <CollapsibleSection
+          title={`Im Zeitraum (${b.period.length})`}
+          extra={
+            <Link to="/aufgaben?ansicht=zeitraum" className="text-xs text-brand-700">
+              Alle anzeigen
+            </Link>
+          }
+          {...section('period')}
+        >
           <ul className="space-y-2">
             {b.period.map((t) => (
               <TaskItem key={instanceKey(t)} task={t} />
             ))}
           </ul>
-        </section>
+        </CollapsibleSection>
       )}
 
       <div className="grid grid-cols-2 gap-2 text-sm">
@@ -123,14 +137,13 @@ export function TodayPage() {
       </div>
 
       {b.doneToday.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold text-slate-500">Erledigt heute ({b.doneToday.length})</h3>
+        <CollapsibleSection title={`Erledigt heute (${b.doneToday.length})`} {...section('done')}>
           <ul className="space-y-2">
             {b.doneToday.map((t) => (
               <TaskItem key={instanceKey(t)} task={t} />
             ))}
           </ul>
-        </section>
+        </CollapsibleSection>
       )}
 
       <FabChoice

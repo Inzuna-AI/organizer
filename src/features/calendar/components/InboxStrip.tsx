@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Draggable } from '@fullcalendar/interaction'
 import type { Task } from '@/types/data'
+import { loadPref, savePref } from '@/lib/storage'
 import { DEFAULT_TIMED_MIN } from '../utils'
 
 interface Props {
@@ -14,7 +15,12 @@ interface Props {
  */
 export function InboxStrip({ tasks, colorOf }: Props) {
   const ref = useRef<HTMLDivElement>(null)
-  const [open, setOpen] = useState(true)
+  // Standardmäßig eingeklappt, damit der Kalender Platz hat; das Gerät merkt sich die Wahl
+  const [open, setOpenState] = useState<boolean>(() => loadPref('calendarInboxOpen', false))
+  const setOpen = (v: boolean) => {
+    setOpenState(v)
+    savePref('calendarInboxOpen', v)
+  }
 
   useEffect(() => {
     if (!ref.current) return
@@ -42,8 +48,13 @@ export function InboxStrip({ tasks, colorOf }: Props) {
         aria-expanded={open}
         className="flex min-h-11 w-full items-center justify-between px-3 text-sm"
       >
-        <span className="font-medium">📥 Inbox ({tasks.length})</span>
-        <span className="text-xs text-slate-500">{open ? 'lange drücken und in den Kalender ziehen' : 'anzeigen'}</span>
+        <span className="flex items-center gap-1.5 font-medium">
+          <span aria-hidden className={`inline-block text-xs text-slate-500 transition-transform ${open ? 'rotate-90' : ''}`}>
+            ▶
+          </span>
+          📥 Inbox ({tasks.length})
+        </span>
+        <span className="text-xs text-slate-500">{open ? 'lange drücken und in den Kalender ziehen' : 'aufklappen'}</span>
       </button>
       {open && (
         <div ref={ref} className="flex gap-2 overflow-x-auto px-3 pb-3">
