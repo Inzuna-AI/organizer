@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react'
+﻿import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { berlinDateString, formatLongDate } from '@/lib/dates'
 import { loadPref, savePref } from '@/lib/storage'
@@ -8,6 +8,8 @@ import { involves } from '@/lib/events'
 import { useAppStore, useMe } from '@/store'
 import { instanceKey, TaskItem, todayBuckets, useTaskInstances } from '@/features/tasks'
 import { EventItem, useEventsBetween } from '@/features/events'
+import { OrderSheet } from './components/OrderSheet'
+import { normalizeOrder, type TodaySection } from './utils'
 
 export function TodayPage() {
   const me = useMe()
@@ -30,6 +32,14 @@ export function TodayPage() {
     },
   })
 
+  // Reihenfolge der Abschnitte, ebenfalls pro Gerät
+  const [order, setOrderState] = useState<TodaySection[]>(() => normalizeOrder(loadPref('todayOrder', null)))
+  const setOrder = (o: TodaySection[]) => {
+    setOrderState(o)
+    savePref('todayOrder', o)
+  }
+  const [sorting, setSorting] = useState(false)
+
   const today = berlinDateString()
   const b = useMemo(
     () => todayBuckets(tasks, today, { mineOnly, meId }, (iso) => berlinDateString(new Date(iso))),
@@ -41,6 +51,90 @@ export function TodayPage() {
     () => (mineOnly ? allEvents.filter((i) => involves(i.event, meId)) : allEvents),
     [allEvents, mineOnly, meId],
   )
+
+  const sections: Record<TodaySection, ReactNode> = {
+    events: events.length > 0 && (
+      <CollapsibleSection title={`Termine heute (${events.length})`} {...section('events')}>
+        <ul className="space-y-2">
+          {events.map((i) => (
+            <EventItem key={i.date ? `${i.event.id}:${i.date}` : i.event.id} instance={i} day={today} />
+          ))}
+        </ul>
+      </CollapsibleSection>
+    ),
+    overdue: b.overdue.length > 0 && (
+      <CollapsibleSection title={`Überfällig (${b.overdue.length})`} tone="text-red-600" {...section('overdue')}>
+        <ul className="space-y-2">
+          {b.overdue.map((t) => (
+            <TaskItem key={instanceKey(t)} task={t} showDate />
+          ))}
+        </ul>
+      </CollapsibleSection>
+    ),
+    today: (
+      <CollapsibleSection title={`Aufgaben heute (${b.today.length})`} {...section('today')}>
+        {b.today.length > 0 ? (
+          <ul className="space-y-2">
+            {b.today.map((t) => (
+              <TaskItem key={instanceKey(t)} task={t} />
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
+            {nothing && b.doneToday.length > 0
+              ? 'Alles erledigt für heute. 🎉'
+              : events.length
+                ? 'Keine Aufgaben für heute.'
+                : 'Für heute steht nichts an.'}
+          </p>
+        )}
+      </CollapsibleSection>
+    ),
+    period: b.period.length > 0 && (
+      <CollapsibleSection
+        title={`Im Zeitraum (${b.period.length})`}
+        extra={
+          <Link to="/aufgaben?ansicht=zeitraum" className="text-xs text-brand-700">
+            Alle anzeigen
+          </Link>
+        }
+        {...section('period')}
+      >
+        <ul className="space-y-2">
+          {b.period.map((t) => (
+            <TaskItem key={instanceKey(t)} task={t} />
+          ))}
+        </ul>
+      </CollapsibleSection>
+    ),
+    links: (
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <Link
+          to="/aufgaben?ansicht=inbox"
+          className="flex min-h-12 items-center justify-between rounded-2xl border border-slate-200 bg-white px-4"
+        >
+          <span>📥 Inbox</span>
+          <span className="font-semibold">{b.inboxCount}</span>
+        </Link>
+        <Link
+          to="/aufgaben"
+          className="flex min-h-12 items-center justify-between rounded-2xl border border-slate-200 bg-white px-4"
+        >
+          <span>Morgen</span>
+          <span className="font-semibold">{b.tomorrowCount}</span>
+        </Link>
+      </div>
+    ),
+    done: b.doneToday.length > 0 && (
+      <CollapsibleSection title={`Erledigt heute (${b.doneToday.length})`} {...section('done')}>
+        <ul className="space-y-2">
+          {b.doneToday.map((t) => (
+            <TaskItem key={instanceKey(t)} task={t} />
+          ))}
+        </ul>
+      </CollapsibleSection>
+    ),
+  }
 
   return (
     <div className="space-y-5 p-4">
@@ -67,84 +161,21 @@ export function TodayPage() {
         </div>
       </div>
 
-      {events.length > 0 && (
-        <CollapsibleSection title={`Termine heute (${events.length})`} {...section('events')}>
-          <ul className="space-y-2">
-            {events.map((i) => (
-              <EventItem key={i.date ? `${i.event.id}:${i.date}` : i.event.id} instance={i} day={today} />
-            ))}
-          </ul>
-        </CollapsibleSection>
-      )}
+      {order.map((k) => (
+        <Fragment key={k}>{sections[k]}</Fragment>
+      ))}
 
-      {b.overdue.length > 0 && (
-        <CollapsibleSection title={`Überfällig (${b.overdue.length})`} tone="text-red-600" {...section('overdue')}>
-          <ul className="space-y-2">
-            {b.overdue.map((t) => (
-              <TaskItem key={instanceKey(t)} task={t} showDate />
-            ))}
-          </ul>
-        </CollapsibleSection>
-      )}
-
-      <CollapsibleSection title={`Aufgaben heute (${b.today.length})`} {...section('today')}>
-        {b.today.length > 0 ? (
-          <ul className="space-y-2">
-            {b.today.map((t) => (
-              <TaskItem key={instanceKey(t)} task={t} />
-            ))}
-          </ul>
-        ) : (
-          <p className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
-            {nothing && b.doneToday.length > 0 ? 'Alles erledigt für heute. 🎉' : events.length ? 'Keine Aufgaben für heute.' : 'Für heute steht nichts an.'}
-          </p>
-        )}
-      </CollapsibleSection>
-
-      {b.period.length > 0 && (
-        <CollapsibleSection
-          title={`Im Zeitraum (${b.period.length})`}
-          extra={
-            <Link to="/aufgaben?ansicht=zeitraum" className="text-xs text-brand-700">
-              Alle anzeigen
-            </Link>
-          }
-          {...section('period')}
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={() => setSorting(true)}
+          className="min-h-11 rounded-xl px-4 text-sm text-slate-500 active:bg-slate-100"
         >
-          <ul className="space-y-2">
-            {b.period.map((t) => (
-              <TaskItem key={instanceKey(t)} task={t} />
-            ))}
-          </ul>
-        </CollapsibleSection>
-      )}
-
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <Link
-          to="/aufgaben?ansicht=inbox"
-          className="flex min-h-12 items-center justify-between rounded-2xl border border-slate-200 bg-white px-4"
-        >
-          <span>📥 Inbox</span>
-          <span className="font-semibold">{b.inboxCount}</span>
-        </Link>
-        <Link
-          to="/aufgaben"
-          className="flex min-h-12 items-center justify-between rounded-2xl border border-slate-200 bg-white px-4"
-        >
-          <span>Morgen</span>
-          <span className="font-semibold">{b.tomorrowCount}</span>
-        </Link>
+          ⇅ Reihenfolge anpassen
+        </button>
       </div>
 
-      {b.doneToday.length > 0 && (
-        <CollapsibleSection title={`Erledigt heute (${b.doneToday.length})`} {...section('done')}>
-          <ul className="space-y-2">
-            {b.doneToday.map((t) => (
-              <TaskItem key={instanceKey(t)} task={t} />
-            ))}
-          </ul>
-        </CollapsibleSection>
-      )}
+      <OrderSheet open={sorting} order={order} onChange={setOrder} onClose={() => setSorting(false)} />
 
       <FabChoice
         label="Neuer Termin oder neue Aufgabe für heute"

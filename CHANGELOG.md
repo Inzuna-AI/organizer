@@ -3,6 +3,11 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.6.0] – 2026-11-20
+
+### Neu
+- Heute: Reihenfolge der Abschnitte frei wählbar. Unten auf „⇅ Reihenfolge anpassen“ tippen und Termine, Überfällig, Aufgaben heute, Im Zeitraum, Inbox & Morgen und Erledigt heute mit ↑/↓ verschieben. „Standard“ stellt die ursprüngliche Reihenfolge wieder her. Gilt pro Gerät
+
 ## [1.5.0] – 2026-11-20
 
 ### Neu
