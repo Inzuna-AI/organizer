@@ -169,6 +169,8 @@ Jeder Datensatz hat `id` (UUID), `updatedAt` (ISO-Zeitstempel), `deleted` (bool)
 - `events` (Termine, ab `schemaVersion` 2): `startAt` mit Uhrzeit oder ganztägig `JJJJ-MM-TT`. `endAt` mit Uhrzeit (auch an einem späteren Tag) bzw. bei ganztägigen der letzte Tag inklusive; `null` = 60 Minuten bzw. ein Tag. `personIds` leer oder alle Personen = „Familie“. Ausnahmen einer Serie stehen direkt im Termin (`exceptions`, Schlüssel = ursprüngliches Datum), nicht in `occurrences`.
 - `devices[].notify.newEvent`: Nachricht bei neuem oder geändertem Termin, bei dem die Person dabei ist.
 - `tasks[].reminderTimes` / `events[].reminderTimes` (optional, seit v1.2.0): Erinnerungen zu festen Uhrzeiten als `"<Tage relativ>@HH:MM"`, z. B. `"-7@09:00"`, `"-1@15:00"`, `"0@21:00"`. Fehlt = keine Erinnerung.
+- Bei Zeitraum-Aufgaben (seit v1.7.0) enthält `reminderTimes` stattdessen `"start@09:00"` und/oder `"end@09:00"` (zum Start bzw. kurz vor Ablauf). Ältere notify-Versionen ignorieren diese Codes.
+- `shoppingItems[].later` (optional, seit v1.7.0): `true` = liegt unter „Nächster Einkauf“. Fehlt/`false` = aktuelle Liste.
 - `tasks[].period` (optional, seit v1.4.0): `week` | `month` | `quarter` | `half` | `year` = Aufgabe mit Zeitraum statt festem Tag. `startAt` ist dann der erste Tag des Zeitraums (ganztägig), eine Serie hat `FREQ=WEEKLY;BYDAY=MO` bzw. `FREQ=MONTHLY;INTERVAL=<Monate>`. Fehlt/`null` = fester Tag.
 - `devices[].notify.dueReminder`: Erinnerungen auf diesem Gerät an/aus. `dueReminderMinutesBefore` wird seit v1.3.0 nicht mehr verwendet. `quietHours` kann `null` sein (keine Ruhezeiten).
 - `devices[].testRequestedAt` (optional): Ändert sich der Wert, schickt `notify-on-change` eine Testbenachrichtigung an dieses Gerät.
@@ -553,6 +555,17 @@ Hinweise zur Umsetzung:
 - [x] Kalender: Inbox standardmäßig eingeklappt (Pref `calendarInboxOpen`)
 - [x] Raum-Symbol 🧘 (Selfcare)
 - [x] `v1.6.0`: Reihenfolge der Abschnitte in Heute einstellbar („⇅ Reihenfolge anpassen“, Bottom-Sheet mit ↑/↓, Pref `todayOrder`). Logik in `features/today/utils.ts` (`normalizeOrder` ergänzt neue Abschnitte an ihrer Standardposition)
+
+### Nächster Einkauf und Zeitraum-Erinnerungen (`v1.7.0`, abgeschlossen am 21.11.2026)
+- [x] Einkauf: Bereich „Nächster Einkauf“ pro Liste (zwischen offen und Erledigt, einklappbar, Pref `shoppingLaterOpen`)
+- [x] Wischen nach rechts = zurückstellen (Toast mit „Rückgängig“), ↑ am Artikel bzw. „Alle in die Liste holen“ = zurückholen
+- [x] Schalter „Für den nächsten Einkauf“ am Eingabefeld (Pref `shoppingAddLater`)
+- [x] Zeitraum-Aufgaben: Erinnerung zum Start und kurz vor Ablauf (9 Uhr), neue Aufgaben mit beiden
+
+Hinweise zur Umsetzung:
+- Einkauf: `splitItems` liefert `{open, later, checked}`; `nextOpenSortOrder(items, listId, later)` zählt getrennt. `planAdd`: gleicher Name unter „Nächster Einkauf“ wird zurückgeholt (bzw. `exists`, wenn ebenfalls für später). `suggest` bevorzugt zurückgestellte (`later: true`, `reopenId`); Auswählen holt sie immer auf die aktuelle Liste. Store: `setLater`, `allNow`, `add(..., later)`. Abhaken/Haken entfernen setzt `later: false`.
+- Push: Zurückgestellte und direkt für später angelegte Artikel lösen nichts aus; Zurückholen zählt als neuer Artikel.
+- Zeitraum-Erinnerungen: Logik in `lib/periods.ts` (`PERIOD_REMINDERS`, `parsePeriodReminder`, `normalizePeriodReminders`, `periodReminderDate`, `activePeriod`, `daysLeft`). Start = erster Tag (Jahr: 2. Januar). Ende = Woche Freitag, Monat Ende − 6, Quartal Ende − 13, Halbjahr/Jahr erster Tag des letzten Monats; nur wenn offen. In `notify/reminders.ts` als `myPeriodTasks` (Fenster −15/+30 Min., Schlüssel `r|<gerät>|<task>|<von>|<code>`), an die aktuell zuständige Person (Rotation). Formular: `PeriodReminderField`. Bestehende Zeitraum-Aufgaben haben erst nach Bearbeiten Erinnerungen.
 
 ### Später / optional
 - **App-Badge** (Zahl am Homescreen-Symbol) für fällige Aufgaben, ohne Zeitraum-Aufgaben. Besprochen am 20.11.2026, zurückgestellt. Idee: `navigator.setAppBadge` in der App bei Änderungen, im Service Worker aus der Push-Payload (Zahl pro Person von `notify.mjs`). iPhone ab iOS 16.4 (Homescreen + Push-Berechtigung, keine stillen Pushes); Samsung/Chrome zeigt nur die Zahl ungelesener Benachrichtigungen. Offen: Termine mitzählen? Nur meine oder alle? Schalter pro Gerät
