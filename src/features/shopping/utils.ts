@@ -10,45 +10,57 @@ export function sortLists(lists: ShoppingList[]): ShoppingList[] {
   return [...lists].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'de'))
 }
 
-/** Offene Artikel in manueller Reihenfolge. */
+/** Offene Artikel (aktuelle Liste) in manueller Reihenfolge. */
 export function sortOpen(items: ShoppingItem[]): ShoppingItem[] {
-  return items.filter((i) => !i.checked).sort((a, b) => a.sortOrder - b.sortOrder)
+  return items.filter((i) => !i.checked && !i.later).sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
+/** „Nächster Einkauf“: zurückgestellte Artikel in der Reihenfolge, in der sie dazukamen. */
+export function sortLater(items: ShoppingItem[]): ShoppingItem[] {
+  return items.filter((i) => !i.checked && i.later).sort((a, b) => a.sortOrder - b.sortOrder)
 }
 
 /** Erledigte Artikel, zuletzt abgehakter zuerst. */
 export function sortChecked(items: ShoppingItem[]): ShoppingItem[] {
-  return items
-    .filter((i) => i.checked)
-    .sort((a, b) => (b.checkedAt ?? '').localeCompare(a.checkedAt ?? ''))
+  return items.filter((i) => i.checked).sort((a, b) => (b.checkedAt ?? '').localeCompare(a.checkedAt ?? ''))
 }
 
-/** Nicht gelöschte Artikel einer Liste, aufgeteilt in offen und erledigt. */
-export function splitItems(items: ShoppingItem[], listId: string): { open: ShoppingItem[]; checked: ShoppingItem[] } {
+export interface ListItems {
+  open: ShoppingItem[]
+  later: ShoppingItem[]
+  checked: ShoppingItem[]
+}
+
+/** Nicht gelöschte Artikel einer Liste, aufgeteilt in offen, „Nächster Einkauf“ und erledigt. */
+export function splitItems(items: ShoppingItem[], listId: string): ListItems {
   const inList = items.filter((i) => !i.deleted && i.listId === listId)
-  return { open: sortOpen(inList), checked: sortChecked(inList) }
+  return { open: sortOpen(inList), later: sortLater(inList), checked: sortChecked(inList) }
 }
 
-/** sortOrder für einen Artikel am Ende der offenen Artikel. */
-export function nextOpenSortOrder(items: ShoppingItem[], listId: string): number {
+/** sortOrder für einen Artikel am Ende der offenen Artikel (bzw. von „Nächster Einkauf“). */
+export function nextOpenSortOrder(items: ShoppingItem[], listId: string, later = false): number {
   let max = 0
-  for (const i of items) if (!i.deleted && !i.checked && i.listId === listId) max = Math.max(max, i.sortOrder)
+  for (const i of items) {
+    if (!i.deleted && !i.checked && !!i.later === later && i.listId === listId) max = Math.max(max, i.sortOrder)
+  }
   return max + 1
 }
 
-export type AddPlan =
-  | { kind: 'exists'; id: string }
-  | { kind: 'reopen'; id: string }
-  | { kind: 'create' }
+export type AddPlan = { kind: 'exists'; id: string } | { kind: 'reopen'; id: string } | { kind: 'create' }
 
 /**
  * Was beim Hinzufügen passiert: Steht der Artikel schon offen auf der Liste, nichts.
- * Ist er abgehakt, wird er wieder geöffnet statt doppelt angelegt. Sonst neu anlegen.
+ * Liegt er unter „Nächster Einkauf“, wird er auf die aktuelle Liste geholt (bzw. bleibt dort, wenn er
+ * ebenfalls für später gedacht ist). Ist er abgehakt, wird er wieder geöffnet statt doppelt angelegt.
+ * Sonst neu anlegen.
  */
-export function planAdd(items: ShoppingItem[], listId: string, name: string): AddPlan {
+export function planAdd(items: ShoppingItem[], listId: string, name: string, later = false): AddPlan {
   const key = nameKey(name)
   const same = items.filter((i) => !i.deleted && i.listId === listId && nameKey(i.name) === key)
-  const open = same.find((i) => !i.checked)
+  const open = same.find((i) => !i.checked && !i.later)
   if (open) return { kind: 'exists', id: open.id }
+  const waiting = same.find((i) => !i.checked && i.later)
+  if (waiting) return later ? { kind: 'exists', id: waiting.id } : { kind: 'reopen', id: waiting.id }
   const checked = sortChecked(same)[0]
   if (checked) return { kind: 'reopen', id: checked.id }
   return { kind: 'create' }
@@ -58,8 +70,10 @@ export interface Suggestion {
   name: string
   quantity: string
   note: string
-  /** Abgehakter Artikel dieser Liste, der wieder geöffnet wird */
+  /** Abgehakter Artikel dieser Liste, der wieder geöffnet wird (bzw. aus „Nächster Einkauf“ geholt) */
   reopenId: string | null
+  /** Liegt unter „Nächster Einkauf“ */
+  later: boolean
 }
 
 /**
@@ -70,23 +84,30 @@ export function suggest(items: ShoppingItem[], listId: string, query: string, li
   const q = nameKey(query)
   if (!q) return []
   const openKeys = new Set(
-    items.filter((i) => !i.deleted && !i.checked && i.listId === listId).map((i) => nameKey(i.name)),
+    items.filter((i) => !i.deleted && !i.checked && !i.later && i.listId === listId).map((i) => nameKey(i.name)),
   )
   const byKey = new Map<string, { s: Suggestion; score: number; when: string }>()
   for (const i of items) {
     const key = nameKey(i.name)
     if (!key || openKeys.has(key) || key === q) continue
-    if (!i.deleted && !i.checked) continue
+    if (!i.deleted && !i.checked && !i.later) continue
     const pos = key.indexOf(q)
     if (pos < 0) continue
     const wordStart = pos === 0 || key[pos - 1] === ' ' || key[pos - 1] === '-'
     const score = pos === 0 ? 0 : wordStart ? 1 : 2
     const reopen = !i.deleted && i.listId === listId ? i.id : null
+    const later = !!reopen && !i.checked && !!i.later
     const when = i.checkedAt ?? i.updatedAt
     const prev = byKey.get(key)
-    // Wiederöffnen hat Vorrang, sonst der zuletzt verwendete Eintrag
-    if (!prev || (reopen && !prev.s.reopenId) || (!!reopen === !!prev.s.reopenId && when > prev.when)) {
-      byKey.set(key, { s: { name: i.name.trim(), quantity: i.quantity, note: i.note, reopenId: reopen }, score, when })
+    // „Nächster Einkauf“ vor Wiederöffnen, das vor neuem Eintrag, sonst der zuletzt verwendete
+    const rank = (x: { reopenId: string | null; later: boolean }) => (x.later ? 2 : x.reopenId ? 1 : 0)
+    const mine = rank({ reopenId: reopen, later })
+    if (!prev || mine > rank(prev.s) || (mine === rank(prev.s) && when > prev.when)) {
+      byKey.set(key, {
+        s: { name: i.name.trim(), quantity: i.quantity, note: i.note, reopenId: reopen, later },
+        score,
+        when,
+      })
     }
   }
   return [...byKey.values()]

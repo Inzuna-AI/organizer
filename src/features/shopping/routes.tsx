@@ -20,10 +20,12 @@ export function ShoppingPage() {
   const [selected, setSelectedState] = useState<string | null>(() => loadPref<string | null>('shoppingList', null))
   const listId = lists.find((l) => l.id === selected)?.id ?? lists[0]?.id ?? null
   const list = lists.find((l) => l.id === listId) ?? null
-  const { open, checked } = useListItems(listId)
+  const { open, later, checked } = useListItems(listId)
 
   const [doneOpen, setDoneOpenState] = useState<boolean>(() => loadPref('shoppingDoneOpen', true))
-  const [undo, setUndo] = useState<{ id: string; name: string } | null>(null)
+  const [laterOpen, setLaterOpenState] = useState<boolean>(() => loadPref('shoppingLaterOpen', true))
+  const [addLater, setAddLaterState] = useState<boolean>(() => loadPref('shoppingAddLater', false))
+  const [undo, setUndo] = useState<{ id: string; name: string; kind: 'deleted' | 'later' } | null>(null)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -44,16 +46,37 @@ export function ShoppingPage() {
     savePref('shoppingDoneOpen', v)
   }
 
-  function remove(item: ShoppingItem) {
-    shoppingActions.remove(item.id)
-    setUndo({ id: item.id, name: item.name })
+  function setLaterOpen(v: boolean) {
+    setLaterOpenState(v)
+    savePref('shoppingLaterOpen', v)
+  }
+
+  function setAddLater(v: boolean) {
+    setAddLaterState(v)
+    savePref('shoppingAddLater', v)
+  }
+
+  function showUndo(u: { id: string; name: string; kind: 'deleted' | 'later' }) {
+    setUndo(u)
     if (undoTimer.current) clearTimeout(undoTimer.current)
     undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS)
   }
 
+  function remove(item: ShoppingItem) {
+    shoppingActions.remove(item.id)
+    showUndo({ id: item.id, name: item.name, kind: 'deleted' })
+  }
+
+  /** Offenen Artikel für den nächsten Einkauf zurückstellen */
+  function defer(item: ShoppingItem) {
+    shoppingActions.setLater(item.id, true)
+    showUndo({ id: item.id, name: item.name, kind: 'later' })
+  }
+
   function onUndo() {
     if (!undo) return
-    shoppingActions.restore(undo.id)
+    if (undo.kind === 'deleted') shoppingActions.restore(undo.id)
+    else shoppingActions.setLater(undo.id, false)
     setUndo(null)
   }
 
@@ -97,7 +120,9 @@ export function ShoppingPage() {
       <AddItemInput
         listId={listId}
         items={allItems}
-        onAdd={(input, reopenId) => shoppingActions.add(listId, input, reopenId)}
+        later={addLater}
+        onLaterChange={setAddLater}
+        onAdd={(input, reopenId, now) => shoppingActions.add(listId, input, reopenId, addLater && !now)}
       />
 
       <LayoutGroup>
@@ -106,7 +131,58 @@ export function ShoppingPage() {
             {checked.length > 0 ? 'Alles eingekauft. 🎉' : 'Die Liste ist leer.'}
           </p>
         ) : (
-          listId && <OpenItems listId={listId} items={open} onDelete={remove} />
+          listId && <OpenItems listId={listId} items={open} onDelete={remove} onLater={defer} />
+        )}
+
+        {later.length > 0 && (
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setLaterOpen(!laterOpen)}
+                aria-expanded={laterOpen}
+                className="flex min-h-11 items-center gap-1 text-sm font-semibold text-amber-700"
+              >
+                <span
+                  className={`inline-block transition-transform ${laterOpen ? 'rotate-90' : ''}`}
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+                Nächster Einkauf ({later.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => listId && shoppingActions.allNow(listId)}
+                className="min-h-11 px-2 text-sm text-brand-700"
+              >
+                ↑ Alle in die Liste holen
+              </button>
+            </div>
+            {laterOpen && (
+              <ul className="space-y-2">
+                <AnimatePresence initial={false}>
+                  {later.map((item) => (
+                    <motion.li
+                      key={item.id}
+                      layoutId={item.id}
+                      layout="position"
+                      transition={spring}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      <ItemRow
+                        item={item}
+                        onToggle={() => shoppingActions.setLater(item.id, false)}
+                        onLater={() => shoppingActions.setLater(item.id, false)}
+                        onDelete={() => remove(item)}
+                        onSave={(v) => shoppingActions.save(item.id, v)}
+                      />
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </ul>
+            )}
+          </section>
         )}
 
         {checked.length > 0 && (
@@ -174,8 +250,14 @@ export function ShoppingPage() {
             className="fixed right-4 left-4 z-30 mx-auto flex max-w-md items-center gap-3 rounded-xl bg-slate-800 py-2 pr-2 pl-4 text-sm text-white shadow-lg dark:bg-slate-200"
             style={{ bottom: 'calc(env(safe-area-inset-bottom) + 4.75rem)' }}
           >
-            <span className="min-w-0 flex-1 truncate">„{undo.name}“ gelöscht</span>
-            <button type="button" onClick={onUndo} className="min-h-10 rounded-lg px-3 font-semibold text-brand-100 active:bg-slate-700 dark:text-teal-300 dark:active:bg-slate-300">
+            <span className="min-w-0 flex-1 truncate">
+              „{undo.name}“ {undo.kind === 'deleted' ? 'gelöscht' : '→ Nächster Einkauf'}
+            </span>
+            <button
+              type="button"
+              onClick={onUndo}
+              className="min-h-10 rounded-lg px-3 font-semibold text-brand-100 active:bg-slate-700 dark:text-teal-300 dark:active:bg-slate-300"
+            >
               Rückgängig
             </button>
           </motion.div>
@@ -191,10 +273,12 @@ function OpenItems({
   listId,
   items,
   onDelete,
+  onLater,
 }: {
   listId: string
   items: ShoppingItem[]
   onDelete: (item: ShoppingItem) => void
+  onLater: (item: ShoppingItem) => void
 }) {
   // Während des Ziehens eigene Reihenfolge, danach wieder die gespeicherte
   const [dragOrder, setDragOrder] = useState<string[] | null>(null)
@@ -214,14 +298,32 @@ function OpenItems({
       <AnimatePresence initial={false}>
         {order.map((id) => {
           const item = byId.get(id)!
-          return <OpenItem key={id} item={item} onDragEnd={onDragEnd} onDelete={() => onDelete(item)} />
+          return (
+            <OpenItem
+              key={id}
+              item={item}
+              onDragEnd={onDragEnd}
+              onDelete={() => onDelete(item)}
+              onLater={() => onLater(item)}
+            />
+          )
         })}
       </AnimatePresence>
     </Reorder.Group>
   )
 }
 
-function OpenItem({ item, onDragEnd, onDelete }: { item: ShoppingItem; onDragEnd: () => void; onDelete: () => void }) {
+function OpenItem({
+  item,
+  onDragEnd,
+  onDelete,
+  onLater,
+}: {
+  item: ShoppingItem
+  onDragEnd: () => void
+  onDelete: () => void
+  onLater: () => void
+}) {
   const controls = useDragControls()
   return (
     <Reorder.Item
@@ -239,6 +341,7 @@ function OpenItem({ item, onDragEnd, onDelete }: { item: ShoppingItem; onDragEnd
         item={item}
         onToggle={() => shoppingActions.setChecked(item.id, true)}
         onDelete={onDelete}
+        onLater={onLater}
         onSave={(v) => shoppingActions.save(item.id, v)}
         onHandleDown={(e: PointerEvent) => controls.start(e)}
       />

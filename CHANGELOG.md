@@ -3,6 +3,19 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.7.0] – 2026-11-21
+
+### Neu
+- Einkaufszettel: Bereich „Nächster Einkauf“ in jeder Liste, für Artikel, die erst beim nächsten Mal gekauft werden sollen. Einen offenen Artikel nach rechts wischen legt ihn dort ab (mit „Rückgängig“). Der Bereich steht zwischen den offenen Artikeln und „Erledigt“ und ist einklappbar
+- Zurückholen per ↑ am Artikel oder mit „↑ Alle in die Liste holen“
+- Schalter „Für den nächsten Einkauf“ unter dem Eingabefeld: Solange er an ist, landen neue Artikel direkt unter „Nächster Einkauf“
+- Vorschläge beim Tippen finden auch Artikel aus „Nächster Einkauf“ und holen sie auf die aktuelle Liste
+- Benachrichtigungen: Zurückstellen und direkt für später Angelegtes lösen nichts aus. Das Zurückholen zählt als neuer Artikel („Lena hat … hinzugefügt“)
+- Zeitraum-Aufgaben: Erinnerungen „Zum Start“ und „Kurz vor Ablauf“ (jeweils 9 Uhr), bei neuen Aufgaben beide angekreuzt. Start = erster Tag des Zeitraums (beim Jahr der 2. Januar). Kurz vor Ablauf = Woche am Freitag, Monat 7 Tage, Quartal 14 Tage, Halbjahr/Jahr 1 Monat vor Ende, nur wenn noch offen. Die Nachricht geht an die Person, die gerade zuständig ist (auch bei Rotation)
+
+### Hinweis
+- Bestehende Zeitraum-Aufgaben haben noch keine Erinnerung. Zum Einschalten die Aufgabe bearbeiten und die Haken setzen
+
 ## [1.6.0] – 2026-11-20
 
 ### Neu

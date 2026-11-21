@@ -5,14 +5,18 @@ import { suggest, type Suggestion } from '../utils'
 interface Props {
   listId: string | null
   items: ShoppingItem[]
-  onAdd: (input: { name: string; quantity: string; note: string }, reopenId: string | null) => void
+  /** Schalter „Für den nächsten Einkauf“: neue Artikel landen unter „Nächster Einkauf“ */
+  later: boolean
+  onLaterChange: (later: boolean) => void
+  /** `now` = auf jeden Fall auf die aktuelle Liste (Vorschlag aus „Nächster Einkauf“) */
+  onAdd: (input: { name: string; quantity: string; note: string }, reopenId: string | null, now?: boolean) => void
 }
 
 const inputClass =
   'block min-h-11 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100'
 
 /** Eingabefeld oben: Enter fügt hinzu, das Feld bleibt fokussiert. Mit Vorschlägen beim Tippen. */
-export function AddItemInput({ listId, items, onAdd }: Props) {
+export function AddItemInput({ listId, items, later, onLaterChange, onAdd }: Props) {
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [note, setNote] = useState('')
@@ -38,7 +42,7 @@ export function AddItemInput({ listId, items, onAdd }: Props) {
   }
 
   function pick(s: Suggestion) {
-    onAdd({ name: s.name, quantity: quantity || s.quantity, note: note || s.note }, s.reopenId)
+    onAdd({ name: s.name, quantity: quantity || s.quantity, note: note || s.note }, s.reopenId, s.later)
     reset()
   }
 
@@ -48,7 +52,7 @@ export function AddItemInput({ listId, items, onAdd }: Props) {
         <input
           ref={nameRef}
           className={inputClass}
-          placeholder="Artikel hinzufügen …"
+          placeholder={later ? 'Für den nächsten Einkauf …' : 'Artikel hinzufügen …'}
           aria-label="Artikel"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -101,6 +105,18 @@ export function AddItemInput({ listId, items, onAdd }: Props) {
         </div>
       )}
 
+      <button
+        type="button"
+        aria-pressed={later}
+        onPointerDown={(e) => e.preventDefault()}
+        onClick={() => onLaterChange(!later)}
+        className={`min-h-9 rounded-full border px-3 text-sm ${
+          later ? 'border-amber-500 bg-amber-50 font-semibold text-amber-700' : 'border-slate-200 text-slate-500'
+        }`}
+      >
+        {later ? '✓ ' : ''}Für den nächsten Einkauf
+      </button>
+
       {showSuggestions && (
         <ul
           className="absolute top-12 right-0 left-0 z-10 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
@@ -116,7 +132,9 @@ export function AddItemInput({ listId, items, onAdd }: Props) {
               >
                 <span className="flex-1 truncate">{s.name}</span>
                 {s.quantity && <span className="text-sm text-slate-500">{s.quantity}</span>}
-                <span className="text-xs text-slate-400">{s.reopenId ? 'wieder auf die Liste' : 'neu'}</span>
+                <span className="text-xs text-slate-400">
+                  {s.later ? 'aus Nächster Einkauf' : s.reopenId ? 'wieder auf die Liste' : 'neu'}
+                </span>
               </button>
             </li>
           ))}

@@ -19,7 +19,8 @@ import {
 } from './common'
 import { berlinParts } from './time'
 
-export type ChangeKind = 'newTask' | 'assigned' | 'completed' | 'changed' | 'newShoppingItem' | 'newEvent' | 'changedEvent'
+export type ChangeKind =
+  'newTask' | 'assigned' | 'completed' | 'changed' | 'newShoppingItem' | 'newEvent' | 'changedEvent'
 
 export interface ChangeEvent {
   kind: ChangeKind
@@ -41,14 +42,38 @@ export interface ChangeEvent {
 }
 
 /** Felder, deren Änderung als „geändert oder verschoben“ zählt (Checklisten-Haken nicht) */
-const WATCHED = ['title', 'description', 'startAt', 'allDay', 'durationMin', 'roomId', 'priority', 'recurrenceRule', 'recurrenceMode', 'period'] as const
+const WATCHED = [
+  'title',
+  'description',
+  'startAt',
+  'allDay',
+  'durationMin',
+  'roomId',
+  'priority',
+  'recurrenceRule',
+  'recurrenceMode',
+  'period',
+] as const
 
 /** Termin-Felder, deren Änderung gemeldet wird */
-const EVENT_WATCHED = ['title', 'location', 'startAt', 'endAt', 'allDay', 'personIds', 'recurrenceRule', 'exceptions'] as const
+const EVENT_WATCHED = [
+  'title',
+  'location',
+  'startAt',
+  'endAt',
+  'allDay',
+  'personIds',
+  'recurrenceRule',
+  'exceptions',
+] as const
 
 /** Nächstes Vorkommen ab heute (bei vergangenen einmaligen Terminen der Termin selbst) */
 function nextEventInstance(e: CalEvent, today: string): EventInstance | null {
-  return eventsBetween([e], today, addDays(today, 400))[0] ?? eventsBetween([e], e.startAt.slice(0, 10), e.startAt.slice(0, 10))[0] ?? null
+  return (
+    eventsBetween([e], today, addDays(today, 400))[0] ??
+    eventsBetween([e], e.startAt.slice(0, 10), e.startAt.slice(0, 10))[0] ??
+    null
+  )
 }
 
 function whenOf(t: Task, occurrences: Occurrence[], date: string | null, today: string): string | undefined {
@@ -161,7 +186,10 @@ export function detectChanges(prev: DataFile, next: DataFile, today: string): Ch
     const date = next1?.date ?? null
     if (!p || p.deleted) {
       events.push({ kind: 'newEvent', by: e.updatedBy ?? e.createdBy, ...base, date, when })
-    } else if (p.updatedAt !== e.updatedAt && EVENT_WATCHED.some((k) => JSON.stringify(p[k]) !== JSON.stringify(e[k]))) {
+    } else if (
+      p.updatedAt !== e.updatedAt &&
+      EVENT_WATCHED.some((k) => JSON.stringify(p[k]) !== JSON.stringify(e[k]))
+    ) {
       // Neu dazugekommene Personen sollen es auch dann erfahren, wenn sie vorher nicht beteiligt waren
       events.push({ kind: 'changedEvent', by: e.updatedBy, ...base, date, when })
     }
@@ -169,11 +197,20 @@ export function detectChanges(prev: DataFile, next: DataFile, today: string): Ch
 
   const prevItems = new Map(prev.shoppingItems.map((i) => [i.id, i]))
   for (const i of next.shoppingItems) {
-    if (i.deleted || i.checked) continue
+    // „Nächster Einkauf“ (later) zählt nicht: erst, wenn der Artikel auf die aktuelle Liste kommt
+    if (i.deleted || i.checked || i.later) continue
     const pi = prevItems.get(i.id)
-    // Neu oder wieder auf die Liste gesetzt (z. B. über einen Vorschlag)
-    if (!pi || pi.deleted || pi.checked) {
-      events.push({ kind: 'newShoppingItem', by: i.updatedBy, title: i.name, taskId: null, date: null, roomId: null, assigneeIds: [] })
+    // Neu, wieder auf die Liste gesetzt (z. B. über einen Vorschlag) oder aus „Nächster Einkauf“ geholt
+    if (!pi || pi.deleted || pi.checked || pi.later) {
+      events.push({
+        kind: 'newShoppingItem',
+        by: i.updatedBy,
+        title: i.name,
+        taskId: null,
+        date: null,
+        roomId: null,
+        assigneeIds: [],
+      })
     }
   }
 
@@ -302,7 +339,11 @@ export function composeMessage(events: ChangeEvent[], data: DataFile): PushPaylo
 }
 
 /** Nachrichten für alle Geräte zu einem Commit */
-export function changeMessages(prev: DataFile, next: DataFile, today: string): Array<{ device: Device; payload: PushPayload }> {
+export function changeMessages(
+  prev: DataFile,
+  next: DataFile,
+  today: string,
+): Array<{ device: Device; payload: PushPayload }> {
   const events = detectChanges(prev, next, today)
   const out: Array<{ device: Device; payload: PushPayload }> = []
   for (const device of activeDevices(next)) {
@@ -316,7 +357,11 @@ export function changeMessages(prev: DataFile, next: DataFile, today: string): A
  * Ein Lauf von „notify-on-change“: Änderungsnachrichten (ohne Ruhezeiten) plus Testnachrichten.
  * Ohne vorherigen Stand (erster Commit) wird nur getestet, nicht gemeldet.
  */
-export function changeRun(prev: DataFile | null, next: DataFile, now: Date): Array<{ device: Device; payload: PushPayload }> {
+export function changeRun(
+  prev: DataFile | null,
+  next: DataFile,
+  now: Date,
+): Array<{ device: Device; payload: PushPayload }> {
   if (!prev) return []
   const today = berlinParts(now).date
   const changes = changeMessages(prev, next, today).filter((m) => !isQuiet(m.device, now))

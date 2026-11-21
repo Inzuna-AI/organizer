@@ -33,8 +33,18 @@ type PeriodTask = Pick<
 >
 
 const MONTHS = [
-  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
 ]
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -190,4 +200,75 @@ export function openPeriod(t: PeriodTask, occurrences: Occurrence[], today: stri
   const current = currentPeriod(t, occurrences, today)
   if (current && current.status === 'open') return current
   return upcomingPeriod(t, occurrences, today)
+}
+
+// ---------- Erinnerungen ----------
+
+/**
+ * Feste Erinnerungen für Zeitraum-Aufgaben (im Feld reminderTimes, neben den Codes fester Tage):
+ * zum Start des Zeitraums und kurz vor Ablauf (nur, solange noch offen). Immer 9 Uhr.
+ * Ältere notify-Versionen kennen die Codes nicht und überspringen sie.
+ */
+export const PERIOD_REMINDERS: ReadonlyArray<{ code: string; label: string }> = [
+  { code: 'start@09:00', label: 'Zum Start, 9 Uhr' },
+  { code: 'end@09:00', label: 'Kurz vor Ablauf, 9 Uhr' },
+]
+
+export const DEFAULT_PERIOD_REMINDERS = PERIOD_REMINDERS.map((r) => r.code)
+
+/** "end@09:00" → { which: 'end', time: '09:00' }; null bei anderem Wert */
+export function parsePeriodReminder(code: string): { which: 'start' | 'end'; time: string } | null {
+  const m = /^(start|end)@([01]\d|2[0-3]):([0-5]\d)$/.exec(code)
+  return m ? { which: m[1] as 'start' | 'end', time: `${m[2]}:${m[3]}` } : null
+}
+
+/** Nur gültige Zeitraum-Codes in fester Reihenfolge; leer = undefined (Feld entfällt) */
+export function normalizePeriodReminders(codes: string[] | undefined): string[] | undefined {
+  const valid = DEFAULT_PERIOD_REMINDERS.filter((c) => codes?.includes(c))
+  return valid.length > 0 ? valid : undefined
+}
+
+/**
+ * Tag der Erinnerung in einem Zeitraum:
+ * Start = erster Tag (beim Jahr der 2. Januar). Vor Ablauf: Woche = Freitag (noch 3 Tage),
+ * Monat = noch 7 Tage, Quartal = noch 14 Tage, Halbjahr/Jahr = Anfang des letzten Monats.
+ */
+export function periodReminderDate(
+  range: { from: string; to: string },
+  unit: PeriodUnit,
+  which: 'start' | 'end',
+): string {
+  if (which === 'start') return unit === 'year' && range.from.endsWith('-01-01') ? addDays(range.from, 1) : range.from
+  switch (unit) {
+    case 'week':
+      return addDays(range.to, -2)
+    case 'month':
+      return addDays(range.to, -6)
+    case 'quarter':
+      return addDays(range.to, -13)
+    default:
+      return `${range.to.slice(0, 7)}-01`
+  }
+}
+
+/** Anzahl Tage von date bis einschließlich to */
+export function daysLeft(date: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / 86_400_000) + 1
+}
+
+/** Zeitraum einer Aufgabe, um den es heute geht: laufend und offen (Serie) bzw. der einmalige Zeitraum */
+export function activePeriod(
+  t: PeriodTask & Pick<Task, 'status'>,
+  occurrences: Occurrence[],
+  today: string,
+): { from: string; to: string; assigneeIds: string[] } | null {
+  if (!isPeriodTask(t)) return null
+  if (isSeries(t)) {
+    const cur = currentPeriod(t, occurrences, today)
+    if (!cur || cur.status !== 'open') return null
+    return { ...periodRange(t, cur.date), assigneeIds: cur.assigneeIds }
+  }
+  if (t.status === 'done') return null
+  const range = periodRange(t, t.startAt!.slice(0, 10))
+  return range.from <= today && today <= range.to ? { ...range, assigneeIds: t.assigneeIds } : null
 }

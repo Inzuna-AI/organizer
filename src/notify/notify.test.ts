@@ -69,8 +69,26 @@ function data(o: Partial<DataFile> = {}): DataFile {
   return {
     schemaVersion: 2,
     persons: [
-      { id: ME, name: 'Ich', kuerzel: 'IC', color: '#000', updatedAt: T0, deleted: false, createdBy: null, updatedBy: null },
-      { id: LENA, name: 'Lena', kuerzel: 'LE', color: '#000', updatedAt: T0, deleted: false, createdBy: null, updatedBy: null },
+      {
+        id: ME,
+        name: 'Ich',
+        kuerzel: 'IC',
+        color: '#000',
+        updatedAt: T0,
+        deleted: false,
+        createdBy: null,
+        updatedBy: null,
+      },
+      {
+        id: LENA,
+        name: 'Lena',
+        kuerzel: 'LE',
+        color: '#000',
+        updatedAt: T0,
+        deleted: false,
+        createdBy: null,
+        updatedBy: null,
+      },
     ],
     rooms: [],
     tasks: [],
@@ -124,10 +142,16 @@ describe('time', () => {
 describe('Änderungen', () => {
   it('neue Aufgabe von Lena, mir zugewiesen → nur mein Gerät, als „Dir zugewiesen“', () => {
     const prev = data()
-    const next = data({ tasks: [task({ title: 'Bad putzen', assigneeIds: [ME], startAt: '2026-11-20T10:00', updatedAt: T1 })] })
+    const next = data({
+      tasks: [task({ title: 'Bad putzen', assigneeIds: [ME], startAt: '2026-11-20T10:00', updatedAt: T1 })],
+    })
     const msgs = changeRun(prev, next, NOON)
     expect(msgs.map((m) => m.device.id)).toEqual(['d-me'])
-    expect(msgs[0].payload).toMatchObject({ title: 'Dir zugewiesen', body: 'Bad putzen · Morgen 10:00', url: '#/aufgaben/t' })
+    expect(msgs[0].payload).toMatchObject({
+      title: 'Dir zugewiesen',
+      body: 'Bad putzen · Morgen 10:00',
+      url: '#/aufgaben/t',
+    })
   })
 
   it('mehrere neue Aufgaben werden zu einer Nachricht', () => {
@@ -146,7 +170,28 @@ describe('Änderungen', () => {
     })
     const [msg] = changeRun(prev, next, NOON)
     expect(msg.device.id).toBe('d-me')
-    expect(msg.payload).toMatchObject({ title: 'Lena hat 5 Artikel hinzugefügt', body: 'Brot, Milch, Eier und 2 weitere', url: '#/einkauf' })
+    expect(msg.payload).toMatchObject({
+      title: 'Lena hat 5 Artikel hinzugefügt',
+      body: 'Brot, Milch, Eier und 2 weitere',
+      url: '#/einkauf',
+    })
+  })
+
+  it('„Nächster Einkauf“: Zurückstellen und direkt für später anlegen still, Zurückholen zählt als neu', () => {
+    const prev = data({
+      shoppingItems: [item('x', 'Brot', { updatedAt: T0 }), item('m', 'Milch', { later: true, updatedAt: T0 })],
+    })
+    const deferred = data({
+      shoppingItems: [
+        item('x', 'Brot', { later: true }),
+        item('m', 'Milch', { later: true }),
+        item('n', 'Nudeln', { later: true }),
+      ],
+    })
+    expect(changeRun(prev, deferred, NOON)).toEqual([])
+    const back = data({ shoppingItems: [item('x', 'Brot'), item('m', 'Milch')] })
+    const [msg] = changeRun(prev, back, NOON)
+    expect(msg.payload).toMatchObject({ title: 'Einkaufszettel', body: 'Lena hat Milch hinzugefügt' })
   })
 
   it('Abhaken mit Rotation: Lena bekommt „erledigt“ und „dir zugewiesen“ in einer Nachricht', () => {
@@ -179,7 +224,10 @@ describe('Änderungen', () => {
     }
     const done16 = { ...done19, id: 's:2026-11-16', originalDate: '2026-11-16', assigneeId: null, updatedAt: T0 }
     // Vorher: 16. erledigt, 19. (Lena, von mir übernommen) offen
-    const prev = data({ tasks: [series], occurrences: [done16, { ...done19, status: 'open', completedAt: null, completedBy: null, updatedAt: T0 }] })
+    const prev = data({
+      tasks: [series],
+      occurrences: [done16, { ...done19, status: 'open', completedAt: null, completedBy: null, updatedAt: T0 }],
+    })
     const next = data({ tasks: [series], occurrences: [done16, done19] })
     const msgs = changeRun(prev, next, NOON)
     // Nächster offener Termin: 23.11. → Index 2 → ME. Lena wird nicht neu zuständig.
@@ -195,11 +243,28 @@ describe('Änderungen', () => {
   })
 
   it('„nach Erledigung“: Abhaken meldet nur „erledigt“, nicht zusätzlich „geändert“', () => {
-    const before = task({ id: 'a', title: 'Gießen', startAt: '2026-11-19', allDay: true, recurrenceRule: 'FREQ=DAILY;INTERVAL=3', recurrenceMode: 'after_completion' })
+    const before = task({
+      id: 'a',
+      title: 'Gießen',
+      startAt: '2026-11-19',
+      allDay: true,
+      recurrenceRule: 'FREQ=DAILY;INTERVAL=3',
+      recurrenceMode: 'after_completion',
+    })
     const after = { ...before, startAt: '2026-11-22', updatedAt: T1 }
     const occ: Occurrence = {
-      id: 'a:2026-11-19', taskId: 'a', originalDate: '2026-11-19', movedTo: null, status: 'done',
-      completedAt: T1, completedBy: LENA, assigneeId: null, updatedAt: T1, deleted: false, createdBy: LENA, updatedBy: LENA,
+      id: 'a:2026-11-19',
+      taskId: 'a',
+      originalDate: '2026-11-19',
+      movedTo: null,
+      status: 'done',
+      completedAt: T1,
+      completedBy: LENA,
+      assigneeId: null,
+      updatedAt: T1,
+      deleted: false,
+      createdBy: LENA,
+      updatedBy: LENA,
     }
     const events = detectChanges(data({ tasks: [before] }), data({ tasks: [after], occurrences: [occ] }), TODAY)
     expect(events.map((e) => e.kind)).toEqual(['completed'])
@@ -265,14 +330,24 @@ describe('Änderungen', () => {
 
 describe('Erinnerungen und Zusammenfassung', () => {
   const at = (iso: string) => new Date(iso)
-  const timed = task({ id: 'a', title: 'Arzt', startAt: '2026-11-19T15:00', assigneeIds: [ME], reminderTimes: ['0@14:00'] })
+  const timed = task({
+    id: 'a',
+    title: 'Arzt',
+    startAt: '2026-11-19T15:00',
+    assigneeIds: [ME],
+    reminderTimes: ['0@14:00'],
+  })
   const onlyMe = (o: Partial<NotifySettings> = {}) => [device('d-me', ME, { dailySummary: false, ...o })]
 
   it('feste Uhrzeit: bis zu 15 Minuten früher, bis zu 30 Minuten später, nur einmal', () => {
     const d = data({ tasks: [timed], devices: onlyMe() })
     expect(reminderRun(d, emptyState(), at('2026-11-19T12:37:00Z')).messages).toEqual([]) // 13:37
     const run = reminderRun(d, emptyState(), at('2026-11-19T12:50:00Z')) // 13:50, Soll 14:00
-    expect(run.messages[0].payload).toMatchObject({ title: 'Erinnerung', body: 'Arzt · Heute 15:00', url: '#/aufgaben/a' })
+    expect(run.messages[0].payload).toMatchObject({
+      title: 'Erinnerung',
+      body: 'Arzt · Heute 15:00',
+      url: '#/aufgaben/a',
+    })
     expect(reminderRun(d, run.state, at('2026-11-19T13:20:00Z')).messages).toEqual([])
     expect(reminderRun(d, emptyState(), at('2026-11-19T13:25:00Z')).messages).toHaveLength(1) // 14:25 (verzögert)
     expect(reminderRun(d, emptyState(), at('2026-11-19T13:37:00Z')).messages).toEqual([]) // 14:37
@@ -289,7 +364,13 @@ describe('Erinnerungen und Zusammenfassung', () => {
   })
 
   it('nachts nichts (auch bei manuellem Start)', () => {
-    const early = task({ id: 'f', title: 'Flug', startAt: '2026-11-19T07:00', assigneeIds: [ME], reminderTimes: ['0@05:30'] })
+    const early = task({
+      id: 'f',
+      title: 'Flug',
+      startAt: '2026-11-19T07:00',
+      assigneeIds: [ME],
+      reminderTimes: ['0@05:30'],
+    })
     const night = reminderRun(data({ tasks: [early], devices: onlyMe() }), emptyState(), at('2026-11-19T04:30:00Z')) // 05:30
     expect(night.messages).toEqual([])
     expect(night.state.sent).toEqual({})
@@ -297,7 +378,10 @@ describe('Erinnerungen und Zusammenfassung', () => {
 
   it('mehrere Uhrzeiten: jede einzeln, auch nach Beginn', () => {
     const t = task({
-      id: 'z', title: 'Zahnarzt', startAt: '2026-11-26T10:00', assigneeIds: [ME],
+      id: 'z',
+      title: 'Zahnarzt',
+      startAt: '2026-11-26T10:00',
+      assigneeIds: [ME],
       reminderTimes: ['-7@09:00', '-1@15:00', '0@09:00', '0@21:00'],
     })
     const d = data({ tasks: [t], devices: onlyMe() })
@@ -306,8 +390,12 @@ describe('Erinnerungen und Zusammenfassung', () => {
     expect(week.messages[0].payload).toMatchObject({ title: 'Erinnerung', body: 'Zahnarzt · Do, 26.11. 10:00' })
     expect(reminderRun(d, week.state, at('2026-11-19T08:37:00Z')).messages).toEqual([])
     // Vortag 15 Uhr und am Tag 21 Uhr (nach Beginn, Aufgabe noch offen)
-    expect(reminderRun(d, emptyState(), at('2026-11-25T14:07:00Z')).messages[0].payload.body).toBe('Zahnarzt · Morgen 10:00')
-    expect(reminderRun(d, emptyState(), at('2026-11-26T20:07:00Z')).messages[0].payload.body).toBe('Zahnarzt · Heute 10:00')
+    expect(reminderRun(d, emptyState(), at('2026-11-25T14:07:00Z')).messages[0].payload.body).toBe(
+      'Zahnarzt · Morgen 10:00',
+    )
+    expect(reminderRun(d, emptyState(), at('2026-11-26T20:07:00Z')).messages[0].payload.body).toBe(
+      'Zahnarzt · Heute 10:00',
+    )
     // erledigt: nichts mehr
     const done = data({ tasks: [{ ...t, status: 'done' }], devices: onlyMe() })
     expect(reminderRun(done, emptyState(), at('2026-11-26T20:07:00Z')).messages).toEqual([])
@@ -323,8 +411,20 @@ describe('Erinnerungen und Zusammenfassung', () => {
 
   it('feste Uhrzeiten bei ganztägigen Terminen', () => {
     const e: CalEvent = {
-      id: 'e', updatedAt: T1, deleted: false, createdBy: LENA, updatedBy: LENA, title: 'Urlaub', location: '', note: '',
-      startAt: '2026-11-21', endAt: '2026-11-23', allDay: true, personIds: [ME], recurrenceRule: null, exceptions: [],
+      id: 'e',
+      updatedAt: T1,
+      deleted: false,
+      createdBy: LENA,
+      updatedBy: LENA,
+      title: 'Urlaub',
+      location: '',
+      note: '',
+      startAt: '2026-11-21',
+      endAt: '2026-11-23',
+      allDay: true,
+      personIds: [ME],
+      recurrenceRule: null,
+      exceptions: [],
       reminderTimes: ['-1@08:00'],
     }
     const run = reminderRun(data({ events: [e], devices: onlyMe() }), emptyState(), at('2026-11-20T07:07:00Z'))
@@ -333,7 +433,10 @@ describe('Erinnerungen und Zusammenfassung', () => {
 
   it('Lenas Aufgaben erinnern mich nicht, Aufgaben ohne Zuständige schon', () => {
     const d = data({
-      tasks: [{ ...timed, assigneeIds: [LENA] }, { ...timed, id: 'b', title: 'Offen', assigneeIds: [] }],
+      tasks: [
+        { ...timed, assigneeIds: [LENA] },
+        { ...timed, id: 'b', title: 'Offen', assigneeIds: [] },
+      ],
       devices: onlyMe(),
     })
     const run = reminderRun(d, emptyState(), at('2026-11-19T13:05:00Z'))
@@ -341,19 +444,49 @@ describe('Erinnerungen und Zusammenfassung', () => {
   })
 
   it('mehrere Einträge: eine Nachricht', () => {
-    const allDay = task({ id: 'g', title: 'Müll', startAt: '2026-11-19', allDay: true, assigneeIds: [ME], reminderTimes: ['0@14:00'] })
-    const run = reminderRun(data({ tasks: [allDay, timed], devices: onlyMe() }), emptyState(), at('2026-11-19T13:05:00Z'))
+    const allDay = task({
+      id: 'g',
+      title: 'Müll',
+      startAt: '2026-11-19',
+      allDay: true,
+      assigneeIds: [ME],
+      reminderTimes: ['0@14:00'],
+    })
+    const run = reminderRun(
+      data({ tasks: [allDay, timed], devices: onlyMe() }),
+      emptyState(),
+      at('2026-11-19T13:05:00Z'),
+    )
     expect(run.messages[0].payload).toMatchObject({ title: 'Erinnerung: 2 Aufgaben', body: 'Müll, Arzt' })
   })
 
   it('Serien: Termin von heute, erledigte nicht', () => {
-    const series = task({ id: 's', title: 'Gießen', startAt: '2026-11-16T15:00', recurrenceRule: 'FREQ=DAILY', assigneeIds: [ME], reminderTimes: ['0@14:00'] })
+    const series = task({
+      id: 's',
+      title: 'Gießen',
+      startAt: '2026-11-16T15:00',
+      recurrenceRule: 'FREQ=DAILY',
+      assigneeIds: [ME],
+      reminderTimes: ['0@14:00'],
+    })
     const done: Occurrence = {
-      id: 's:2026-11-19', taskId: 's', originalDate: '2026-11-19', movedTo: null, status: 'done',
-      completedAt: T1, completedBy: ME, assigneeId: null, updatedAt: T1, deleted: false, createdBy: ME, updatedBy: ME,
+      id: 's:2026-11-19',
+      taskId: 's',
+      originalDate: '2026-11-19',
+      movedTo: null,
+      status: 'done',
+      completedAt: T1,
+      completedBy: ME,
+      assigneeId: null,
+      updatedAt: T1,
+      deleted: false,
+      createdBy: ME,
+      updatedBy: ME,
     }
     const d = data({ tasks: [series], devices: onlyMe() })
-    expect(reminderRun(d, emptyState(), at('2026-11-19T13:05:00Z')).messages[0].payload.url).toBe('#/aufgaben/s?datum=2026-11-19')
+    expect(reminderRun(d, emptyState(), at('2026-11-19T13:05:00Z')).messages[0].payload.url).toBe(
+      '#/aufgaben/s?datum=2026-11-19',
+    )
     expect(reminderRun({ ...d, occurrences: [done] }, emptyState(), at('2026-11-19T13:05:00Z')).messages).toEqual([])
   })
 
@@ -369,7 +502,10 @@ describe('Erinnerungen und Zusammenfassung', () => {
     const d = data({ tasks: [timed, overdue], devices: [device('d-me', ME, { dueReminder: false })] })
     expect(reminderRun(d, emptyState(), at('2026-11-19T06:00:00Z')).messages).toEqual([]) // 07:00
     const run = reminderRun(d, emptyState(), at('2026-11-19T07:05:00Z')) // 08:05
-    expect(run.messages[0].payload).toMatchObject({ title: 'Dein Tag', body: 'Heute: 1 Aufgabe, 1 überfällig\nAlt, Arzt' })
+    expect(run.messages[0].payload).toMatchObject({
+      title: 'Dein Tag',
+      body: 'Heute: 1 Aufgabe, 1 überfällig\nAlt, Arzt',
+    })
     expect(reminderRun(d, run.state, at('2026-11-19T08:05:00Z')).messages).toEqual([])
     // viel zu spät (nach 3 Stunden) nicht mehr nachholen
     expect(reminderRun(d, emptyState(), at('2026-11-19T10:35:00Z')).messages).toEqual([])
@@ -390,11 +526,14 @@ describe('Erinnerungen und Zusammenfassung', () => {
 describe('abgelaufene Anmeldungen', () => {
   it('werden als gelöscht markiert', () => {
     const out = expireDevices(data(), ['d-lena'], T1)
-    expect(out.devices.find((d) => d.id === 'd-lena')).toMatchObject({ deleted: true, pushSubscription: null, updatedAt: T1 })
+    expect(out.devices.find((d) => d.id === 'd-lena')).toMatchObject({
+      deleted: true,
+      pushSubscription: null,
+      updatedAt: T1,
+    })
     expect(out.devices.find((d) => d.id === 'd-me')?.deleted).toBe(false)
   })
 })
-
 
 describe('Termine', () => {
   const ERINA = 'erina'
@@ -423,7 +562,11 @@ describe('Termine', () => {
     const out = changeRun(data(), data({ events: [ev({})] }), NOON)
     expect(out).toHaveLength(1)
     expect(out[0].device.id).toBe('d-me')
-    expect(out[0].payload).toMatchObject({ title: 'Neuer Termin von Lena', body: 'Zahnarzt · Morgen 15:00', url: '#/termine/e' })
+    expect(out[0].payload).toMatchObject({
+      title: 'Neuer Termin von Lena',
+      body: 'Zahnarzt · Morgen 15:00',
+      url: '#/termine/e',
+    })
   })
 
   it('nicht beteiligt oder Schalter aus: keine Nachricht', () => {
@@ -446,9 +589,17 @@ describe('Termine', () => {
     })
     // 13:50 Berlin, Termin um 15:00, Erinnerung um 14 Uhr
     const run = reminderRun(d, emptyState(), at('2026-11-19T12:50:00Z'))
-    expect(run.messages[0].payload).toMatchObject({ title: 'Erinnerung', body: 'Zahnarzt · Heute 15:00', url: '#/termine/e' })
+    expect(run.messages[0].payload).toMatchObject({
+      title: 'Erinnerung',
+      body: 'Zahnarzt · Heute 15:00',
+      url: '#/termine/e',
+    })
     expect(reminderRun(d, run.state, at('2026-11-19T13:05:00Z')).messages).toEqual([])
-    const summary = reminderRun({ ...d, devices: [device('d-me', ME, { dueReminder: false })] }, emptyState(), at('2026-11-19T07:05:00Z'))
+    const summary = reminderRun(
+      { ...d, devices: [device('d-me', ME, { dueReminder: false })] },
+      emptyState(),
+      at('2026-11-19T07:05:00Z'),
+    )
     expect(summary.messages[0].payload.body).toBe('Heute: 1 Termin\nZahnarzt')
   })
 
@@ -461,7 +612,15 @@ describe('Termine', () => {
 })
 
 describe('Aufgaben mit Zeitraum', () => {
-  const week = task({ id: 'w', title: 'Fenster', startAt: '2026-11-16', allDay: true, period: 'week', assigneeIds: [ME], updatedAt: T1 })
+  const week = task({
+    id: 'w',
+    title: 'Fenster',
+    startAt: '2026-11-16',
+    allDay: true,
+    period: 'week',
+    assigneeIds: [ME],
+    updatedAt: T1,
+  })
 
   it('neue Zeitraum-Aufgabe: „Diese Woche“ statt Datum', () => {
     const msgs = changeRun(data(), data({ tasks: [week] }), NOON)
@@ -483,8 +642,18 @@ describe('Aufgaben mit Zeitraum', () => {
     })
     // Zeiträume: 02.11. ME, 09.11. LENA, 16.11. ME (läuft), 23.11. LENA
     const done: Occurrence = {
-      id: 's:2026-11-16', taskId: 's', originalDate: '2026-11-16', movedTo: null, status: 'done',
-      completedAt: T1, completedBy: ME, assigneeId: null, updatedAt: T1, deleted: false, createdBy: ME, updatedBy: ME,
+      id: 's:2026-11-16',
+      taskId: 's',
+      originalDate: '2026-11-16',
+      movedTo: null,
+      status: 'done',
+      completedAt: T1,
+      completedBy: ME,
+      assigneeId: null,
+      updatedAt: T1,
+      deleted: false,
+      createdBy: ME,
+      updatedBy: ME,
     }
     const prev = data({ tasks: [series] })
     const msgs = changeRun(prev, { ...prev, occurrences: [done] }, NOON)
@@ -502,5 +671,63 @@ describe('Aufgaben mit Zeitraum', () => {
     expect(run.messages).toEqual([])
     // Nach Ende der Woche auch nicht als überfällig
     expect(reminderRun(d, emptyState(), new Date('2026-11-24T07:05:00Z')).messages).toEqual([])
+  })
+
+  describe('Erinnerung zum Start und kurz vor Ablauf', () => {
+    const both = task({ ...week, reminderTimes: ['start@09:00', 'end@09:00'] })
+    const me = () => [device('d-me', ME, { dailySummary: false })]
+
+    it('Woche: Montag 9 Uhr und Freitag 9 Uhr, jeweils einmal', () => {
+      const d = data({ tasks: [both], devices: me() })
+      const mon = reminderRun(d, emptyState(), new Date('2026-11-16T08:05:00Z'))
+      expect(mon.messages[0].payload).toMatchObject({ title: 'Erinnerung', url: '#/aufgaben/w' })
+      expect(mon.messages[0].payload.body).toMatch(/^Fenster · Diese Woche \(bis .*22\.11\.\)$/)
+      expect(reminderRun(d, mon.state, new Date('2026-11-16T08:35:00Z')).messages).toEqual([])
+      expect(reminderRun(d, emptyState(), new Date('2026-11-17T08:05:00Z')).messages).toEqual([])
+      const fri = reminderRun(d, emptyState(), new Date('2026-11-20T08:05:00Z'))
+      expect(fri.messages[0].payload.body).toMatch(/^Fenster · noch 3 Tage \(bis .*22\.11\.\)$/)
+    })
+
+    it('erledigt oder nichts angekreuzt: keine Erinnerung', () => {
+      const done = data({ tasks: [{ ...both, status: 'done' }], devices: me() })
+      expect(reminderRun(done, emptyState(), new Date('2026-11-20T08:05:00Z')).messages).toEqual([])
+      const none = data({ tasks: [week], devices: me() })
+      expect(reminderRun(none, emptyState(), new Date('2026-11-20T08:05:00Z')).messages).toEqual([])
+    })
+
+    it('Serie mit Rotation: nur die Person des laufenden Zeitraums; erledigter Zeitraum still', () => {
+      const series = task({
+        ...both,
+        id: 's',
+        period: 'month',
+        startAt: '2026-10-01',
+        recurrenceRule: 'FREQ=MONTHLY',
+        rotation: true,
+        assigneeIds: [ME, LENA],
+      })
+      // Oktober ME, November LENA
+      const d = data({ tasks: [series], devices: [...me(), device('d-lena', LENA, { dailySummary: false })] })
+      const run = reminderRun(d, emptyState(), new Date('2026-11-24T08:05:00Z')) // 7 Tage vor Monatsende
+      expect(run.messages.map((m) => m.device.personId)).toEqual([LENA])
+      expect(run.messages[0].payload.body).toMatch(/^Fenster · noch 7 Tage/)
+      expect(run.messages[0].payload.url).toBe('#/aufgaben/s?datum=2026-11-01')
+      const done: Occurrence = {
+        id: 's:2026-11-01',
+        taskId: 's',
+        originalDate: '2026-11-01',
+        movedTo: null,
+        status: 'done',
+        completedAt: T1,
+        completedBy: LENA,
+        assigneeId: null,
+        updatedAt: T1,
+        deleted: false,
+        createdBy: LENA,
+        updatedBy: LENA,
+      }
+      expect(
+        reminderRun({ ...d, occurrences: [done] }, emptyState(), new Date('2026-11-24T08:05:00Z')).messages,
+      ).toEqual([])
+    })
   })
 })

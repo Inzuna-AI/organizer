@@ -119,6 +119,8 @@ export interface ShoppingItem extends BaseRecord {
   checked: boolean
   checkedAt: string | null
   sortOrder: number
+  /** Zurückgestellt für den nächsten Einkauf (optional, seit v1.7.0); fehlt = aktuelle Liste */
+  later?: boolean
 }
 
 export interface NotifySettings {

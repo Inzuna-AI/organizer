@@ -114,3 +114,36 @@ describe('reorderChanges', () => {
     expect(reorderChanges(open, ['a', 'b', 'c']).size).toBe(0)
   })
 })
+
+describe('„Nächster Einkauf“', () => {
+  it('eigener Bereich, nicht unter offen; eigene sortOrder', () => {
+    const items = [
+      item({ id: 'a', sortOrder: 1 }),
+      item({ id: 'l1', later: true, sortOrder: 7 }),
+      item({ id: 'l2', later: true, sortOrder: 3 }),
+      item({ id: 'c', later: true, checked: true, checkedAt: '2026-11-19T09:00:00Z' }),
+    ]
+    const { open, later, checked } = splitItems(items, 'L')
+    expect(open.map((i) => i.id)).toEqual(['a'])
+    expect(later.map((i) => i.id)).toEqual(['l2', 'l1'])
+    expect(checked.map((i) => i.id)).toEqual(['c'])
+    expect(nextOpenSortOrder(items, 'L')).toBe(2)
+    expect(nextOpenSortOrder(items, 'L', true)).toBe(8)
+  })
+
+  it('planAdd holt zurückgestellte auf die Liste bzw. erkennt sie beim Anlegen für später', () => {
+    const items = [item({ id: 'm', name: 'Milch', later: true })]
+    expect(planAdd(items, 'L', 'milch')).toEqual({ kind: 'reopen', id: 'm' })
+    expect(planAdd(items, 'L', 'milch', true)).toEqual({ kind: 'exists', id: 'm' })
+  })
+
+  it('suggest schlägt zurückgestellte vor (mit reopenId, vor abgehakten)', () => {
+    const items = [
+      item({ id: 'c', name: 'Milch', checked: true, checkedAt: '2026-11-19T10:00:00Z' }),
+      item({ id: 'm', name: 'milch', later: true }),
+    ]
+    const s = suggest(items, 'L', 'mi')
+    expect(s).toHaveLength(1)
+    expect(s[0]).toMatchObject({ reopenId: 'm', later: true })
+  })
+})

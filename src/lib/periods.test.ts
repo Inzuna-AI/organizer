@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { Occurrence, Task } from '@/types/data'
 import {
   currentPeriod,
+  daysLeft,
+  normalizePeriodReminders,
+  parsePeriodReminder,
+  periodReminderDate,
   describePeriodRepeat,
   openPeriod,
   periodInstances,
@@ -63,7 +67,9 @@ describe('Zeiträume', () => {
     expect(periodRange(task({}), '2026-11-16')).toEqual({ from: '2026-11-16', to: '2026-11-22' })
     expect(periodRange(task({ recurrenceRule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO' }), '2026-11-16').to).toBe('2026-11-29')
     expect(periodRange(task({ period: 'month' }), '2026-12-01')).toEqual({ from: '2026-12-01', to: '2026-12-31' })
-    expect(periodRange(task({ period: 'month', recurrenceRule: 'FREQ=MONTHLY;INTERVAL=3' }), '2026-11-01').to).toBe('2027-01-31')
+    expect(periodRange(task({ period: 'month', recurrenceRule: 'FREQ=MONTHLY;INTERVAL=3' }), '2026-11-01').to).toBe(
+      '2027-01-31',
+    )
   })
 
   it('Quartal, Halbjahr, Jahr am Kalender ausgerichtet', () => {
@@ -158,5 +164,27 @@ describe('Zeiträume', () => {
     // 02.11. = a, 09.11. = b, 16.11. = a
     expect(currentPeriod(t, [], TODAY)?.assigneeIds).toEqual(['a'])
     expect(openPeriod(t, [occ('2026-11-16', 'done')], TODAY)?.assigneeIds).toEqual(['b'])
+  })
+})
+
+describe('Erinnerungen bei Zeiträumen', () => {
+  const r = (from: string, to: string) => ({ from, to })
+  it('Tag der Erinnerung je Zeitraum', () => {
+    expect(periodReminderDate(r('2026-11-16', '2026-11-22'), 'week', 'start')).toBe('2026-11-16')
+    expect(periodReminderDate(r('2026-11-16', '2026-11-22'), 'week', 'end')).toBe('2026-11-20')
+    expect(periodReminderDate(r('2026-11-16', '2026-11-29'), 'week', 'end')).toBe('2026-11-27')
+    expect(periodReminderDate(r('2026-11-01', '2026-11-30'), 'month', 'end')).toBe('2026-11-24')
+    expect(periodReminderDate(r('2026-10-01', '2026-12-31'), 'quarter', 'end')).toBe('2026-12-18')
+    expect(periodReminderDate(r('2027-01-01', '2027-06-30'), 'half', 'end')).toBe('2027-06-01')
+    expect(periodReminderDate(r('2027-01-01', '2027-12-31'), 'year', 'start')).toBe('2027-01-02')
+    expect(periodReminderDate(r('2027-01-01', '2027-12-31'), 'year', 'end')).toBe('2027-12-01')
+  })
+
+  it('Codes lesen und bereinigen', () => {
+    expect(parsePeriodReminder('end@09:00')).toEqual({ which: 'end', time: '09:00' })
+    expect(parsePeriodReminder('0@09:00')).toBeNull()
+    expect(normalizePeriodReminders(['end@09:00', '0@09:00', 'start@09:00'])).toEqual(['start@09:00', 'end@09:00'])
+    expect(normalizePeriodReminders([])).toBeUndefined()
+    expect(daysLeft('2026-11-24', '2026-11-30')).toBe(7)
   })
 })

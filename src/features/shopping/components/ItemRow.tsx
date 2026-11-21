@@ -3,26 +3,34 @@ import { motion, useMotionValue, useTransform, type PanInfo } from 'motion/react
 import type { ShoppingItem } from '@/types/data'
 
 const SWIPE_DELETE_PX = 90
+const SWIPE_LATER_PX = 90
 
 interface Props {
   item: ShoppingItem
   onToggle: () => void
   onDelete: () => void
+  /** Wischen nach rechts: unter „Nächster Einkauf“ ablegen bzw. (bei zurückgestellten) auf die Liste holen */
+  onLater?: () => void
   onSave: (input: { name: string; quantity: string; note: string }) => void
   /** Griff zum Sortieren (nur bei offenen Artikeln) */
   onHandleDown?: (e: PointerEvent) => void
 }
 
-/** Inhalt einer Zeile: Checkbox, Text (antippen = bearbeiten), Wischen nach links = löschen. */
-export function ItemRow({ item, onToggle, onDelete, onSave, onHandleDown }: Props) {
+/**
+ * Inhalt einer Zeile: Checkbox (bei „Nächster Einkauf“ ein ↑ zum Zurückholen), Text (antippen = bearbeiten),
+ * Wischen nach links = löschen, nach rechts = für den nächsten Einkauf zurückstellen bzw. zurückholen.
+ */
+export function ItemRow({ item, onToggle, onDelete, onSave, onLater, onHandleDown }: Props) {
   const [editing, setEditing] = useState(false)
   const x = useMotionValue(0)
   const bgOpacity = useTransform(x, [-SWIPE_DELETE_PX, -20, 0], [1, 0.4, 0])
+  const laterOpacity = useTransform(x, [0, 20, SWIPE_LATER_PX], [0, 0.4, 1])
   // Nach einem Wischen keinen Klick auslösen
   const swiped = useRef(false)
 
   function onDragEnd(_: unknown, info: PanInfo) {
     if (info.offset.x < -SWIPE_DELETE_PX || info.velocity.x < -600) onDelete()
+    else if (onLater && (info.offset.x > SWIPE_LATER_PX || info.velocity.x > 600)) onLater()
     setTimeout(() => (swiped.current = false), 50)
   }
 
@@ -31,8 +39,18 @@ export function ItemRow({ item, onToggle, onDelete, onSave, onHandleDown }: Prop
   }
 
   const checked = item.checked
+  const later = !!item.later && !checked
   return (
     <div className="relative overflow-hidden rounded-2xl">
+      {onLater && (
+        <motion.div
+          aria-hidden="true"
+          style={{ opacity: laterOpacity }}
+          className="absolute inset-0 flex items-center justify-start bg-amber-500 pl-5 text-sm font-medium text-white"
+        >
+          {later ? '↑ Auf die Liste' : 'Nächster Einkauf ↓'}
+        </motion.div>
+      )}
       <motion.div
         aria-hidden="true"
         style={{ opacity: bgOpacity }}
@@ -44,7 +62,7 @@ export function ItemRow({ item, onToggle, onDelete, onSave, onHandleDown }: Prop
         drag="x"
         dragDirectionLock
         dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={{ left: 0.8, right: 0 }}
+        dragElastic={{ left: 0.8, right: onLater ? 0.8 : 0 }}
         dragSnapToOrigin
         onDragStart={() => (swiped.current = true)}
         onDragEnd={onDragEnd}
@@ -53,25 +71,56 @@ export function ItemRow({ item, onToggle, onDelete, onSave, onHandleDown }: Prop
           checked ? 'border-slate-100' : 'border-slate-200'
         } rounded-2xl`}
       >
-        <button
-          type="button"
-          onClick={() => !swiped.current && onToggle()}
-          aria-label={checked ? `Haken bei „${item.name}“ entfernen` : `„${item.name}“ abhaken`}
-          aria-pressed={checked}
-          className="flex w-14 shrink-0 items-center justify-center active:bg-slate-50"
-        >
-          <span
-            className={`flex h-8 w-8 items-center justify-center rounded-lg border-2 ${
-              checked ? 'border-slate-300 bg-slate-300 text-white' : 'border-slate-400'
-            }`}
+        {later ? (
+          <button
+            type="button"
+            onClick={() => !swiped.current && onLater?.()}
+            aria-label={`„${item.name}“ auf die Liste holen`}
+            className="flex w-14 shrink-0 items-center justify-center active:bg-slate-50"
           >
-            {checked && (
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth={3} aria-hidden="true">
-                <path d="M5 12l5 5 9-10" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-amber-400 text-amber-600">
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={3}
+                aria-hidden="true"
+              >
+                <path d="M12 19V5M6 11l6-6 6 6" />
               </svg>
-            )}
-          </span>
-        </button>
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => !swiped.current && onToggle()}
+            aria-label={checked ? `Haken bei „${item.name}“ entfernen` : `„${item.name}“ abhaken`}
+            aria-pressed={checked}
+            className="flex w-14 shrink-0 items-center justify-center active:bg-slate-50"
+          >
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border-2 ${
+                checked ? 'border-slate-300 bg-slate-300 text-white' : 'border-slate-400'
+              }`}
+            >
+              {checked && (
+                <svg
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                  aria-hidden="true"
+                >
+                  <path d="M5 12l5 5 9-10" />
+                </svg>
+              )}
+            </span>
+          </button>
+        )}
         <button
           type="button"
           onClick={() => !swiped.current && setEditing(true)}
@@ -83,7 +132,9 @@ export function ItemRow({ item, onToggle, onDelete, onSave, onHandleDown }: Prop
             {item.quantity && <span className="shrink-0 text-sm text-slate-500">{item.quantity}</span>}
           </span>
           {item.note && (
-            <span className={`block truncate text-xs ${checked ? 'text-slate-300' : 'text-slate-500'}`}>{item.note}</span>
+            <span className={`block truncate text-xs ${checked ? 'text-slate-300' : 'text-slate-500'}`}>
+              {item.note}
+            </span>
           )}
         </button>
         {onHandleDown && (
@@ -133,11 +184,27 @@ function ItemEditor({
     <form onSubmit={submit} className="space-y-2 rounded-2xl border border-brand-600 bg-white p-3">
       <input className={input} aria-label="Artikel" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
       <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2">
-        <input className={input} aria-label="Menge" placeholder="Menge" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-        <input className={input} aria-label="Notiz" placeholder="Notiz" value={note} onChange={(e) => setNote(e.target.value)} />
+        <input
+          className={input}
+          aria-label="Menge"
+          placeholder="Menge"
+          value={quantity}
+          onChange={(e) => setQuantity(e.target.value)}
+        />
+        <input
+          className={input}
+          aria-label="Notiz"
+          placeholder="Notiz"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
       </div>
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="min-h-11 rounded-xl px-4 text-sm text-slate-600 active:bg-slate-100">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-11 rounded-xl px-4 text-sm text-slate-600 active:bg-slate-100"
+        >
           Abbrechen
         </button>
         <button

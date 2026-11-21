@@ -12,8 +12,16 @@ import { ChecklistEditor } from './ChecklistEditor'
 import { RecurrenceEditor, type RecurrenceValue } from '@/components/ui/RecurrenceEditor'
 import { ReminderField } from '@/components/ui/ReminderField'
 import { normalizeFixedReminders } from '@/lib/reminders'
-import { isPeriodTask, periodInterval, periodRule, periodStartOf } from '@/lib/periods'
+import {
+  DEFAULT_PERIOD_REMINDERS,
+  isPeriodTask,
+  normalizePeriodReminders,
+  periodInterval,
+  periodRule,
+  periodStartOf,
+} from '@/lib/periods'
 import { PeriodField, type PeriodValue } from './PeriodField'
+import { PeriodReminderField } from './PeriodReminderField'
 import {
   buildStartAt,
   DURATION_OPTIONS,
@@ -53,13 +61,20 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
   const [assigneeIds, setAssigneeIds] = useState<string[]>(initial?.assigneeIds ?? defaults?.assigneeIds ?? [])
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initial?.checklist ?? [])
   const [recurrence, setRecurrence] = useState<RecurrenceValue>(() => ({
-    spec: initial?.recurrenceRule && initial.startAt
-      ? parseRule(initial.recurrenceRule, seriesDate ?? initial.startAt.slice(0, 10))
-      : null,
+    spec:
+      initial?.recurrenceRule && initial.startAt
+        ? parseRule(initial.recurrenceRule, seriesDate ?? initial.startAt.slice(0, 10))
+        : null,
     mode: initial?.recurrenceMode ?? 'fixed',
     rotation: initial?.rotation ?? false,
   }))
   const [reminderTimes, setReminderTimes] = useState<string[]>(initial?.reminderTimes ?? [])
+  // Zeitraum-Aufgaben: „zum Start“ / „kurz vor Ablauf“, bei neuen standardmäßig beide
+  const [periodReminders, setPeriodReminders] = useState<string[]>(() =>
+    initial && isPeriodTask(initial)
+      ? (normalizePeriodReminders(initial.reminderTimes) ?? [])
+      : DEFAULT_PERIOD_REMINDERS,
+  )
   const ruleDate = seriesDate ?? date
   const today = berlinDateString()
   // Fester Tag oder Zeitraum („irgendwann diese Woche“)
@@ -84,9 +99,10 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
   }
 
   // Dauer-Optionen um einen eventuell abweichenden gespeicherten Wert ergänzen
-  const durationOptions = DURATION_OPTIONS.includes(Number(duration)) || !duration
-    ? DURATION_OPTIONS
-    : [...DURATION_OPTIONS, Number(duration)].sort((a, b) => a - b)
+  const durationOptions =
+    DURATION_OPTIONS.includes(Number(duration)) || !duration
+      ? DURATION_OPTIONS
+      : [...DURATION_OPTIONS, Number(duration)].sort((a, b) => a - b)
 
   function toggleAssignee(id: string) {
     setAssigneeIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
@@ -113,7 +129,7 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
         recurrenceRule: period.repeat ? periodRule(period.unit, period.repeat) : null,
         recurrenceMode: 'fixed',
         rotation: !!period.repeat && period.rotation && assigneeIds.length >= 2,
-        reminderTimes: undefined,
+        reminderTimes: normalizePeriodReminders(periodReminders),
       })
       return
     }
@@ -156,10 +172,12 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
       <Card>
         <div className="space-y-4">
           <div className="grid grid-cols-2 rounded-xl bg-slate-200 p-1" role="group" aria-label="Wann">
-            {([
-              { k: 'day', label: 'Fester Tag' },
-              { k: 'period', label: 'Zeitraum' },
-            ] as const).map((o) => (
+            {(
+              [
+                { k: 'day', label: 'Fester Tag' },
+                { k: 'period', label: 'Zeitraum' },
+              ] as const
+            ).map((o) => (
               <button
                 key={o.k}
                 type="button"
@@ -189,7 +207,15 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
                 {date ? (time ? '' : 'Ohne Uhrzeit = ganztägig.') : 'Ohne Datum landet die Aufgabe in der Inbox.'}
               </p>
               {date && !recurrence.spec && (
-                <Button variant="ghost" className="-mt-2" onClick={() => { setDate(''); setTime(''); setRecurrence((r) => ({ ...r, spec: null })) }}>
+                <Button
+                  variant="ghost"
+                  className="-mt-2"
+                  onClick={() => {
+                    setDate('')
+                    setTime('')
+                    setRecurrence((r) => ({ ...r, spec: null }))
+                  }}
+                >
                   Datum entfernen (in die Inbox)
                 </Button>
               )}
@@ -203,7 +229,11 @@ export function TaskForm({ initial, defaults, seriesDate, submitLabel, onSubmit 
               </option>
             ))}
           </SelectField>
-          {kind === 'day' && <ReminderField value={reminderTimes} onChange={setReminderTimes} disabled={!date} />}
+          {kind === 'day' ? (
+            <ReminderField value={reminderTimes} onChange={setReminderTimes} disabled={!date} />
+          ) : (
+            <PeriodReminderField value={periodReminders} onChange={setPeriodReminders} />
+          )}
         </div>
       </Card>
 

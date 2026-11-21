@@ -20,7 +20,7 @@ export function useAllShoppingItems(): ShoppingItem[] {
 
 export function useListItems(listId: string | null) {
   const items = useAllShoppingItems()
-  return useMemo(() => (listId ? splitItems(items, listId) : { open: [], checked: [] }), [items, listId])
+  return useMemo(() => (listId ? splitItems(items, listId) : { open: [], later: [], checked: [] }), [items, listId])
 }
 
 export interface ItemInput {
@@ -40,24 +40,26 @@ function ensureList(d: DataFile, listId: string | null, me: string | null): { d:
 
 export const shoppingActions = {
   /**
-   * Artikel hinzufügen. Ist er abgehakt, wird er wieder geöffnet (ans Ende),
-   * steht er schon offen auf der Liste, passiert nichts.
+   * Artikel hinzufügen. Ist er abgehakt oder liegt er unter „Nächster Einkauf“, wird er wieder
+   * geöffnet (ans Ende), steht er schon offen auf der Liste, passiert nichts.
+   * `later` = direkt unter „Nächster Einkauf“ ablegen.
    */
-  add(listId: string | null, input: ItemInput, reopenId: string | null = null) {
+  add(listId: string | null, input: ItemInput, reopenId: string | null = null, later = false) {
     const me = currentPersonId()
     const name = input.name.trim()
     if (!name) return
     updateData((data) => {
       const { d, listId: lid } = ensureList(data, listId, me)
-      const plan = reopenId ? { kind: 'reopen' as const, id: reopenId } : planAdd(d.shoppingItems, lid, name)
+      const plan = reopenId ? { kind: 'reopen' as const, id: reopenId } : planAdd(d.shoppingItems, lid, name, later)
       if (plan.kind === 'exists') return d
-      const sortOrder = nextOpenSortOrder(d.shoppingItems, lid)
+      const sortOrder = nextOpenSortOrder(d.shoppingItems, lid, later)
       if (plan.kind === 'reopen') {
         return {
           ...d,
           shoppingItems: updateById(d.shoppingItems, plan.id, me, (i) => ({
             checked: false,
             checkedAt: null,
+            later,
             sortOrder,
             quantity: input.quantity?.trim() || i.quantity,
             note: input.note?.trim() || i.note,
@@ -73,6 +75,7 @@ export const shoppingActions = {
         checked: false,
         checkedAt: null,
         sortOrder,
+        ...(later ? { later: true } : {}),
       }
       return { ...d, shoppingItems: [...d.shoppingItems, item] }
     })
@@ -85,10 +88,41 @@ export const shoppingActions = {
       ...d,
       shoppingItems: updateById(d.shoppingItems, id, me, (i) =>
         checked
-          ? { checked: true, checkedAt: nowIso() }
-          : { checked: false, checkedAt: null, sortOrder: nextOpenSortOrder(d.shoppingItems, i.listId) },
+          ? { checked: true, checkedAt: nowIso(), later: false }
+          : { checked: false, checkedAt: null, later: false, sortOrder: nextOpenSortOrder(d.shoppingItems, i.listId) },
       ),
     }))
+  },
+
+  /** Unter „Nächster Einkauf“ ablegen bzw. zurück auf die aktuelle Liste holen (jeweils ans Ende). */
+  setLater(id: string, later: boolean) {
+    const me = currentPersonId()
+    updateData((d) => ({
+      ...d,
+      shoppingItems: updateById(d.shoppingItems, id, me, (i) => ({
+        later,
+        checked: false,
+        checkedAt: null,
+        sortOrder: nextOpenSortOrder(d.shoppingItems, i.listId, later),
+      })),
+    }))
+  },
+
+  /** „Alle in die Liste holen“: alles aus „Nächster Einkauf“ in der bisherigen Reihenfolge ans Ende. */
+  allNow(listId: string) {
+    const me = currentPersonId()
+    updateData((d) => {
+      const { later } = splitItems(d.shoppingItems, listId)
+      if (later.length === 0) return d
+      const base = nextOpenSortOrder(d.shoppingItems, listId)
+      const pos = new Map(later.map((i, k) => [i.id, base + k]))
+      return {
+        ...d,
+        shoppingItems: d.shoppingItems.map((i) =>
+          pos.has(i.id) ? touch(i, me, { later: false, sortOrder: pos.get(i.id)! }) : i,
+        ),
+      }
+    })
   },
 
   save(id: string, input: Required<ItemInput>) {

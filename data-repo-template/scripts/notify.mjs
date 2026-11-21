@@ -3766,6 +3766,10 @@ function periodLabel(range, unit, today) {
   }
   return `${shortDate(from, today)}\u2013${shortDate(to, today)}`;
 }
+function untilLabel(to, today) {
+  const d = formatDay(to, today);
+  return `bis ${d === "Heute" || d === "Morgen" ? d.toLowerCase() : d}`;
+}
 function currentPeriod(t, occurrences, today) {
   if (!isPeriodTask(t) || !isSeries(t)) return null;
   const n = periodInterval(t);
@@ -3786,6 +3790,42 @@ function openPeriod(t, occurrences, today) {
   const current = currentPeriod(t, occurrences, today);
   if (current && current.status === "open") return current;
   return upcomingPeriod(t, occurrences, today);
+}
+var PERIOD_REMINDERS = [
+  { code: "start@09:00", label: "Zum Start, 9 Uhr" },
+  { code: "end@09:00", label: "Kurz vor Ablauf, 9 Uhr" }
+];
+var DEFAULT_PERIOD_REMINDERS = PERIOD_REMINDERS.map((r) => r.code);
+function parsePeriodReminder(code) {
+  const m = /^(start|end)@([01]\d|2[0-3]):([0-5]\d)$/.exec(code);
+  return m ? { which: m[1], time: `${m[2]}:${m[3]}` } : null;
+}
+function periodReminderDate(range, unit, which) {
+  if (which === "start") return unit === "year" && range.from.endsWith("-01-01") ? addDays(range.from, 1) : range.from;
+  switch (unit) {
+    case "week":
+      return addDays(range.to, -2);
+    case "month":
+      return addDays(range.to, -6);
+    case "quarter":
+      return addDays(range.to, -13);
+    default:
+      return `${range.to.slice(0, 7)}-01`;
+  }
+}
+function daysLeft(date, to) {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / 864e5) + 1;
+}
+function activePeriod(t, occurrences, today) {
+  if (!isPeriodTask(t)) return null;
+  if (isSeries(t)) {
+    const cur = currentPeriod(t, occurrences, today);
+    if (!cur || cur.status !== "open") return null;
+    return { ...periodRange(t, cur.date), assigneeIds: cur.assigneeIds };
+  }
+  if (t.status === "done") return null;
+  const range = periodRange(t, t.startAt.slice(0, 10));
+  return range.from <= today && today <= range.to ? { ...range, assigneeIds: t.assigneeIds } : null;
 }
 
 // src/notify/time.ts
@@ -3916,8 +3956,28 @@ function periodSlotLabel(t, start, today) {
 }
 
 // src/notify/changes.ts
-var WATCHED = ["title", "description", "startAt", "allDay", "durationMin", "roomId", "priority", "recurrenceRule", "recurrenceMode", "period"];
-var EVENT_WATCHED = ["title", "location", "startAt", "endAt", "allDay", "personIds", "recurrenceRule", "exceptions"];
+var WATCHED = [
+  "title",
+  "description",
+  "startAt",
+  "allDay",
+  "durationMin",
+  "roomId",
+  "priority",
+  "recurrenceRule",
+  "recurrenceMode",
+  "period"
+];
+var EVENT_WATCHED = [
+  "title",
+  "location",
+  "startAt",
+  "endAt",
+  "allDay",
+  "personIds",
+  "recurrenceRule",
+  "exceptions"
+];
 function nextEventInstance(e, today) {
   return eventsBetween([e], today, addDays(today, 400))[0] ?? eventsBetween([e], e.startAt.slice(0, 10), e.startAt.slice(0, 10))[0] ?? null;
 }
@@ -4024,10 +4084,18 @@ function detectChanges(prev, next, today) {
   }
   const prevItems = new Map(prev.shoppingItems.map((i) => [i.id, i]));
   for (const i of next.shoppingItems) {
-    if (i.deleted || i.checked) continue;
+    if (i.deleted || i.checked || i.later) continue;
     const pi = prevItems.get(i.id);
-    if (!pi || pi.deleted || pi.checked) {
-      events.push({ kind: "newShoppingItem", by: i.updatedBy, title: i.name, taskId: null, date: null, roomId: null, assigneeIds: [] });
+    if (!pi || pi.deleted || pi.checked || pi.later) {
+      events.push({
+        kind: "newShoppingItem",
+        by: i.updatedBy,
+        title: i.name,
+        taskId: null,
+        date: null,
+        roomId: null,
+        assigneeIds: []
+      });
     }
   }
   return dedupe(events);
@@ -4195,16 +4263,18 @@ function dueReminder(data, device, now, state) {
       allDay: s.allDay,
       url: taskUrl(s.task.id, s.date),
       reminderTimes: s.task.reminderTimes
-    }))
+    })),
+    ...myPeriodTasks(data, device, today)
   ];
   const hit = (w) => !!w && nowMs >= w.from && nowMs < w.until;
   const due = [];
   const keys = [];
   for (const s of candidates) {
     const itemKeys = [];
-    for (const code of s.reminderTimes ?? []) {
+    const checks = s.checks ?? (s.reminderTimes ?? []).map((code) => ({ code, window: fixedReminderWindow(s.startAt, code) }));
+    for (const { code, window } of checks) {
       const k = `${s.key}|${code}`;
-      if (!state.sent[k] && hit(fixedReminderWindow(s.startAt, code))) itemKeys.push(k);
+      if (!state.sent[k] && hit(window)) itemKeys.push(k);
     }
     if (itemKeys.length > 0) {
       due.push(s);
@@ -4216,16 +4286,60 @@ function dueReminder(data, device, now, state) {
   if (due.length === 1) {
     const s = due[0];
     return {
-      payload: { title: "Erinnerung", body: `${s.title} \xB7 ${slotLabel(s.startAt, s.allDay, today)}`, url: s.url },
+      payload: {
+        title: "Erinnerung",
+        body: `${s.title} \xB7 ${s.label ?? slotLabel(s.startAt, s.allDay, today)}`,
+        url: s.url
+      },
       keys
     };
   }
   const kinds = new Set(due.map((s) => s.kind));
   const what = kinds.size > 1 ? "Eintr\xE4ge" : kinds.has("event") ? "Termine" : "Aufgaben";
   return {
-    payload: { title: `Erinnerung: ${due.length} ${what}`, body: listTitles(due.map((s) => s.title), 4), url: "#/" },
+    payload: {
+      title: `Erinnerung: ${due.length} ${what}`,
+      body: listTitles(
+        due.map((s) => s.title),
+        4
+      ),
+      url: "#/"
+    },
     keys
   };
+}
+function myPeriodTasks(data, device, today) {
+  const out = [];
+  for (const t of data.tasks) {
+    if (t.deleted || !t.period || !t.reminderTimes?.some((c) => parsePeriodReminder(c))) continue;
+    const p = activePeriod(t, data.occurrences, today);
+    if (!p || !relevant(device, t.roomId, p.assigneeIds, { mineOrUnassigned: true })) continue;
+    const checks = [];
+    let label = "";
+    for (const code of t.reminderTimes) {
+      const r = parsePeriodReminder(code);
+      if (!r) continue;
+      const date = periodReminderDate(p, t.period, r.which);
+      if (date !== today) continue;
+      const at = berlinWallToDate(`${date}T${r.time}`).getTime();
+      checks.push({ code, window: { from: at - EARLY_MS, until: at + LATE_MS } });
+      const until = untilLabel(p.to, today);
+      const text = r.which === "end" ? `noch ${daysLeft(date, p.to)} Tage (${until})` : `${periodLabel(p, t.period, today)} (${until})`;
+      if (!label || r.which === "end") label = text;
+    }
+    if (checks.length === 0) continue;
+    out.push({
+      kind: "task",
+      key: `r|${device.id}|${t.id}|${p.from}`,
+      title: t.title,
+      startAt: p.from,
+      allDay: true,
+      url: taskUrl(t.id, t.recurrenceRule ? p.from : null),
+      checks,
+      label
+    });
+  }
+  return out;
 }
 function fixedReminderWindow(startAt, code) {
   const p = parseFixedReminder(code);
@@ -4258,10 +4372,14 @@ function dailySummary(data, device, now, state) {
   if (todays.length === 0 && overdue.length === 0 && events.length === 0) return { payload: null };
   const counts = [];
   if (events.length > 0) counts.push(events.length === 1 ? "1 Termin" : `${events.length} Termine`);
-  if (todays.length > 0 || events.length === 0) counts.push(todays.length === 1 ? "1 Aufgabe" : `${todays.length} Aufgaben`);
+  if (todays.length > 0 || events.length === 0)
+    counts.push(todays.length === 1 ? "1 Aufgabe" : `${todays.length} Aufgaben`);
   const parts = [`Heute: ${counts.join(", ")}`];
   if (overdue.length > 0) parts.push(`${overdue.length} \xFCberf\xE4llig`);
-  const titles = listTitles([...events.map((i) => i.event.title), ...[...overdue, ...todays].map((s) => s.task.title)], 4);
+  const titles = listTitles(
+    [...events.map((i) => i.event.title), ...[...overdue, ...todays].map((s) => s.task.title)],
+    4
+  );
   return { payload: { title: "Dein Tag", body: `${parts.join(", ")}
 ${titles}`, url: "#/", tag: "summary" } };
 }

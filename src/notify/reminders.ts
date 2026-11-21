@@ -3,6 +3,7 @@ import type { DataFile, Device } from '@/types/data'
 import { addDays } from '@/lib/dates'
 import { eventsBetween, involves } from '@/lib/events'
 import { parseFixedReminder } from '@/lib/reminders'
+import { activePeriod, daysLeft, parsePeriodReminder, periodLabel, periodReminderDate, untilLabel } from '@/lib/periods'
 import {
   activeDevices,
   eventUrl,
@@ -73,6 +74,7 @@ export function dueReminder(
         url: taskUrl(s.task.id, s.date),
         reminderTimes: s.task.reminderTimes,
       })),
+    ...myPeriodTasks(data, device, today),
   ]
   const hit = (w: { from: number; until: number } | null) => !!w && nowMs >= w.from && nowMs < w.until
   const due: DueItem[] = []
@@ -80,9 +82,11 @@ export function dueReminder(
   for (const s of candidates) {
     // Pro Eintrag höchstens einmal in der Nachricht, auch wenn mehrere Erinnerungen gleichzeitig fällig sind
     const itemKeys: string[] = []
-    for (const code of s.reminderTimes ?? []) {
+    const checks =
+      s.checks ?? (s.reminderTimes ?? []).map((code) => ({ code, window: fixedReminderWindow(s.startAt, code) }))
+    for (const { code, window } of checks) {
       const k = `${s.key}|${code}`
-      if (!state.sent[k] && hit(fixedReminderWindow(s.startAt, code))) itemKeys.push(k)
+      if (!state.sent[k] && hit(window)) itemKeys.push(k)
     }
     if (itemKeys.length > 0) {
       due.push(s)
@@ -95,14 +99,25 @@ export function dueReminder(
   if (due.length === 1) {
     const s = due[0]
     return {
-      payload: { title: 'Erinnerung', body: `${s.title} · ${slotLabel(s.startAt, s.allDay, today)}`, url: s.url },
+      payload: {
+        title: 'Erinnerung',
+        body: `${s.title} · ${s.label ?? slotLabel(s.startAt, s.allDay, today)}`,
+        url: s.url,
+      },
       keys,
     }
   }
   const kinds = new Set(due.map((s) => s.kind))
   const what = kinds.size > 1 ? 'Einträge' : kinds.has('event') ? 'Termine' : 'Aufgaben'
   return {
-    payload: { title: `Erinnerung: ${due.length} ${what}`, body: listTitles(due.map((s) => s.title), 4), url: '#/' },
+    payload: {
+      title: `Erinnerung: ${due.length} ${what}`,
+      body: listTitles(
+        due.map((s) => s.title),
+        4,
+      ),
+      url: '#/',
+    },
     keys,
   }
 }
@@ -117,6 +132,51 @@ interface DueItem {
   url: string
   /** Feste Uhrzeiten ("-1@15:00" …); ohne = keine Erinnerung */
   reminderTimes?: string[]
+  /** Statt reminderTimes: fertig berechnete Zeitfenster (Zeitraum-Aufgaben) */
+  checks?: Array<{ code: string; window: { from: number; until: number } | null }>
+  /** Statt Datum/Uhrzeit in der Nachricht, z. B. „noch 3 Tage (bis So, 23.11.)“ */
+  label?: string
+}
+
+/**
+ * Zeitraum-Aufgaben mit Erinnerung „zum Start“ / „kurz vor Ablauf“ (9 Uhr), solange der laufende
+ * Zeitraum offen ist. Zuständig ist wie in der App die Person des Zeitraums (Rotation).
+ */
+function myPeriodTasks(data: DataFile, device: Device, today: string): DueItem[] {
+  const out: DueItem[] = []
+  for (const t of data.tasks) {
+    if (t.deleted || !t.period || !t.reminderTimes?.some((c) => parsePeriodReminder(c))) continue
+    const p = activePeriod(t, data.occurrences, today)
+    if (!p || !relevant(device, t.roomId, p.assigneeIds, { mineOrUnassigned: true })) continue
+    const checks: NonNullable<DueItem['checks']> = []
+    let label = ''
+    for (const code of t.reminderTimes) {
+      const r = parsePeriodReminder(code)
+      if (!r) continue
+      const date = periodReminderDate(p, t.period, r.which)
+      if (date !== today) continue
+      const at = berlinWallToDate(`${date}T${r.time}`).getTime()
+      checks.push({ code, window: { from: at - EARLY_MS, until: at + LATE_MS } })
+      const until = untilLabel(p.to, today)
+      const text =
+        r.which === 'end'
+          ? `noch ${daysLeft(date, p.to)} Tage (${until})`
+          : `${periodLabel(p, t.period, today)} (${until})`
+      if (!label || r.which === 'end') label = text
+    }
+    if (checks.length === 0) continue
+    out.push({
+      kind: 'task',
+      key: `r|${device.id}|${t.id}|${p.from}`,
+      title: t.title,
+      startAt: p.from,
+      allDay: true,
+      url: taskUrl(t.id, t.recurrenceRule ? p.from : null),
+      checks,
+      label,
+    })
+  }
+  return out
 }
 
 /**
@@ -171,10 +231,14 @@ export function dailySummary(
 
   const counts: string[] = []
   if (events.length > 0) counts.push(events.length === 1 ? '1 Termin' : `${events.length} Termine`)
-  if (todays.length > 0 || events.length === 0) counts.push(todays.length === 1 ? '1 Aufgabe' : `${todays.length} Aufgaben`)
+  if (todays.length > 0 || events.length === 0)
+    counts.push(todays.length === 1 ? '1 Aufgabe' : `${todays.length} Aufgaben`)
   const parts = [`Heute: ${counts.join(', ')}`]
   if (overdue.length > 0) parts.push(`${overdue.length} überfällig`)
-  const titles = listTitles([...events.map((i) => i.event.title), ...[...overdue, ...todays].map((s) => s.task.title)], 4)
+  const titles = listTitles(
+    [...events.map((i) => i.event.title), ...[...overdue, ...todays].map((s) => s.task.title)],
+    4,
+  )
   return { payload: { title: 'Dein Tag', body: `${parts.join(', ')}\n${titles}`, url: '#/', tag: 'summary' } }
 }
 
