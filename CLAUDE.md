@@ -170,6 +170,8 @@ Jeder Datensatz hat `id` (UUID), `updatedAt` (ISO-Zeitstempel), `deleted` (bool)
 - `devices[].notify.newEvent`: Nachricht bei neuem oder geändertem Termin, bei dem die Person dabei ist.
 - `tasks[].reminderTimes` / `events[].reminderTimes` (optional, seit v1.2.0): Erinnerungen zu festen Uhrzeiten als `"<Tage relativ>@HH:MM"`, z. B. `"-7@09:00"`, `"-1@15:00"`, `"0@21:00"`. Fehlt = keine Erinnerung.
 - Bei Zeitraum-Aufgaben (seit v1.7.0) enthält `reminderTimes` stattdessen `"start@09:00"` und/oder `"end@09:00"` (zum Start bzw. kurz vor Ablauf). Ältere notify-Versionen ignorieren diese Codes.
+- `notes` (Notizen, seit v1.8.0, kein Schema-Wechsel): `title`, `text`, `checklist` (wie bei Aufgaben), `color` (Hex oder `null`), `pinned`. Die Sammlung fehlt in älteren Dateien; `normalizeData` ergänzt `[]`, ältere App-Versionen lassen sie unverändert stehen.
+- `devices[].notify.newNote` (optional, seit v1.8.0): Nachricht bei neuer Notiz der anderen Person. Fehlt = an.
 - `shoppingItems[].later` (optional, seit v1.7.0): `true` = liegt unter „Nächster Einkauf“. Fehlt/`false` = aktuelle Liste.
 - `tasks[].period` (optional, seit v1.4.0): `week` | `month` | `quarter` | `half` | `year` = Aufgabe mit Zeitraum statt festem Tag. `startAt` ist dann der erste Tag des Zeitraums (ganztägig), eine Serie hat `FREQ=WEEKLY;BYDAY=MO` bzw. `FREQ=MONTHLY;INTERVAL=<Monate>`. Fehlt/`null` = fester Tag.
 - `devices[].notify.dueReminder`: Erinnerungen auf diesem Gerät an/aus. `dueReminderMinutesBefore` wird seit v1.3.0 nicht mehr verwendet. `quietHours` kann `null` sein (keine Ruhezeiten).
@@ -332,12 +334,13 @@ organizer/
 │   │   ├── events/                # Termine: Formular, Personen, Serien (/termine/neu, /termine/:id)
 │   │   ├── rooms/                 # Räume verwalten, Farbauswahl
 │   │   ├── shopping/              # Einkaufszettel: Listen, Artikel, Vorschläge
-│   │   ├── search/                # Suche über alle Aufgaben (/suche)
+│   │   ├── notes/                 # Notizen: Kachel-Übersicht, Editor mit Autospeichern (/notizen, /notizen/:id)
+│   │   ├── search/                # Suche über Aufgaben, Termine, Notizen (/suche)
 │   │   ├── persons/               # Personen verwalten
 │   │   ├── notifications/         # Push aktivieren, Einstellungen pro Gerät, Test
 │   │   └── settings/              # Einstellungen, Dark Mode, Sync-Status
 │   ├── components/
-│   │   ├── ui/                    # Button, Modal, Badge, ColorPicker, RecurrenceEditor, FabChoice …
+│   │   ├── ui/                    # Button, Modal, Badge, ColorPicker, ChecklistEditor, RecurrenceEditor, FabChoice …
 │   │   └── layout/                # BottomNav, Header, FAB („+“-Button), SyncIndicator
 │   ├── store/                     # Nur Zusammenbau: verbindet die Feature-Stores mit dem Sync (+ initialData.ts)
 │   ├── lib/
@@ -346,6 +349,7 @@ organizer/
 │   │   ├── merge.ts               # Zusammenführen lokal/remote (+ merge.test.ts)
 │   │   ├── recurrence.ts          # RRULE, Rotation (+ recurrence.test.ts)
 │   │   ├── events.ts              # Termine: Dauer, Serien auflösen, Verschieben, Familie (+ events.test.ts)
+│   │   ├── holidays.ts            # Gesetzliche Feiertage (Bremen), nur berechnet (+ holidays.test.ts)
 │   │   ├── periods.ts             # Zeitraum-Aufgaben: Woche bis Jahr, laufender/nächster Zeitraum (+ periods.test.ts)
 │   │   ├── migrations.ts          # schemaVersion-Migrationen
 │   │   ├── storage.ts             # localStorage: Token, Gerät, Cache
@@ -567,6 +571,19 @@ Hinweise zur Umsetzung:
 - Push: Zurückgestellte und direkt für später angelegte Artikel lösen nichts aus; Zurückholen zählt als neuer Artikel.
 - Zeitraum-Erinnerungen: Logik in `lib/periods.ts` (`PERIOD_REMINDERS`, `parsePeriodReminder`, `normalizePeriodReminders`, `periodReminderDate`, `activePeriod`, `daysLeft`). Start = erster Tag (Jahr: 2. Januar). Ende = Woche Freitag, Monat Ende − 6, Quartal Ende − 13, Halbjahr/Jahr erster Tag des letzten Monats; nur wenn offen. In `notify/reminders.ts` als `myPeriodTasks` (Fenster −15/+30 Min., Schlüssel `r|<gerät>|<task>|<von>|<code>`), an die aktuell zuständige Person (Rotation). Formular: `PeriodReminderField`. Bestehende Zeitraum-Aufgaben haben erst nach Bearbeiten Erinnerungen.
 
+### Notizen und Feiertage (`v1.8.0`)
+- [x] Notizen: eigener Punkt in der unteren Leiste, Zettel mit Titel, Text, optionalen Punkten zum Abhaken, Farbe, Anheften
+- [x] Notizen in der Suche und als Push („Neue Notiz“, abschaltbar)
+- [x] Gesetzliche Feiertage (Bremen) plus Adventssonntage, Heiligabend, Silvester im Kalender als eigener Feiertags-Hintergrund, Hinweis in Heute
+- [x] Kalender: überlappende Einträge nebeneinander (`slotEventOverlap={false}`)
+
+Hinweise zur Umsetzung:
+- Notizen: Feature `notes`. `/notizen/neu` und `/notizen/:id` laufen über **eine** Route, damit der Editor beim ersten Speichern nicht neu startet. Entwurf lokal, nach 400 ms in den Store (`noteActions.save` ändert nur bei echten Unterschieden `updatedAt`). Die Notiz entsteht erst mit dem ersten Inhalt, leer verlassen = Tombstone. Sortierung: angeheftete oben, sonst zuletzt geändert. Farbe als Tönung (`<hex>24`) mit farbigem Rand. Löschen → Übersicht mit „Rückgängig“ (über `location.state`).
+- `ChecklistEditor` liegt jetzt in `components/ui` (Aufgaben und Notizen).
+- Push: `newNote` in `notify/changes.ts`, nur neu angelegte Notizen mit Inhalt (Titel, sonst erste Zeile, sonst erster Punkt). Link `#/notizen/<id>`, mehrere = `#/notizen`.
+- Feiertage: `lib/holidays.ts` (Ostern nach Gauß, Region `HB`: bundesweite + Reformationstag ab 2017; dazu auf Wunsch 1.–4. Advent (`fourthAdvent` = Sonntag am/vor 24.12.), Heiligabend, Silvester). Gleicher Tag = ein Eintrag, Namen mit „ · “ verbunden (z. B. „4. Advent · Heiligabend“). Im Kalender als ganztägige Hintergrund-Einträge (`display: 'background'`, Klasse `cal-holiday`, `extendedProps.kind = 'holiday'`): Name im Ganztags-Bereich bzw. Monatsfeld, in den Stunden nur leicht getönt, Tageszahl im Kopf in Bernstein. In der Wochenansicht auf dem Handy wird der Name auf zwei Zeilen gekürzt.
+- Heute: Hinweis über den Abschnitten, wenn heute oder morgen Feiertag ist (kein eigener, sortierbarer Abschnitt).
+
 ### Später / optional
 - **App-Badge** (Zahl am Homescreen-Symbol) für fällige Aufgaben, ohne Zeitraum-Aufgaben. Besprochen am 20.11.2026, zurückgestellt. Idee: `navigator.setAppBadge` in der App bei Änderungen, im Service Worker aus der Push-Payload (Zahl pro Person von `notify.mjs`). iPhone ab iOS 16.4 (Homescreen + Push-Berechtigung, keine stillen Pushes); Samsung/Chrome zeigt nur die Zahl ungelesener Benachrichtigungen. Offen: Termine mitzählen? Nur meine oder alle? Schalter pro Gerät
 - Sync mit Google- oder Apple-Kalender (z. B. als ICS-Export)
@@ -574,7 +591,7 @@ Hinweise zur Umsetzung:
 
 ## UI-Grundsätze
 - **Mobile first**: Die Hauptnutzung ist auf dem Handy, Desktop ist ein Bonus.
-- Untere Navigationsleiste: Heute · Kalender · Aufgaben · Einkauf · Einstellungen
+- Untere Navigationsleiste: Heute · Kalender · Aufgaben · Einkauf · Notizen · Einstellungen
 - Schnelles Anlegen über einen schwebenden „+“-Button
 - Sprache der Oberfläche: **Deutsch**, Datumsformat TT.MM.JJJJ, Woche beginnt am Montag, Zeitzone Europe/Berlin
 - Farben von Räumen müssen auf hellem und dunklem Hintergrund lesbar sein.
