@@ -3,6 +3,11 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.9.2] – 2026-11-23
+
+### Geändert
+- Untere Leiste: „Essen“ steht jetzt vor „Einkauf“
+
 ## [1.9.1] – 2026-11-23
 
 ### Geändert

@@ -12,8 +12,8 @@ const ITEMS: Item[] = [
   { to: '/', label: 'Heute', icon: TodayIcon },
   { to: '/kalender', label: 'Kalender', icon: CalendarIcon },
   { to: '/aufgaben', label: 'Aufgaben', icon: TasksIcon },
-  { to: '/einkauf', label: 'Einkauf', icon: CartIcon },
   { to: '/essen', label: 'Essen', icon: MealsIcon },
+  { to: '/einkauf', label: 'Einkauf', icon: CartIcon },
   { to: '/notizen', label: 'Notizen', icon: NotesIcon },
 ]
 
