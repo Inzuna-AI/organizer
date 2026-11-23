@@ -3,6 +3,12 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.9.3] – 2026-11-23
+
+### Neu
+- Essensplaner: Beim Zufallsvorschlag „🎲 Was essen wir?“ lässt sich das Rezept ansehen, ohne es gleich zu übernehmen („📖 Rezept ansehen“). Nach dem Zurückgehen steht der Vorschlag noch da
+- Essensplaner: Im Wochenplan ein Gericht nach links wegwischen entfernt es vom Tag, mit „Rückgängig“
+
 ## [1.9.2] – 2026-11-23
 
 ### Geändert

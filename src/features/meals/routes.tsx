@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
-import type { Recipe } from '@/types/data'
+import type { Meal, Recipe } from '@/types/data'
 import { addDays, berlinDateString, formatDay, formatYmd, nowIso, weekdayShort } from '@/lib/dates'
 import { holidayOn } from '@/lib/holidays'
 import { loadPref, savePref } from '@/lib/storage'
@@ -10,6 +11,7 @@ import { TextareaField } from '@/components/ui/Field'
 import { TextField } from '@/components/ui/TextField'
 import { useGoBack } from '@/components/layout/useGoBack'
 import { planAdd, shoppingActions, useAllShoppingItems, useShoppingLists } from '@/features/shopping'
+import { SwipeToClear } from './components/SwipeToClear'
 import { mealActions, recipeActions, useAllMeals, useMealsByDate, useRecipe, useRecipeMap, useRecipes, useSoonRecipes } from './store'
 import {
   categoryOptions,
@@ -119,6 +121,29 @@ function WeekView() {
   const needs = useMemo(() => collectIngredients(meals, recipes, from, sunday), [meals, recipes, from, sunday])
   const isPast = sunday < today
   const soon = useSoonRecipes()
+  // Wischen nach links entfernt das Gericht vom Tag, mit „Rückgängig“
+  const [undo, setUndo] = useState<{ meal: Meal; title: string } | null>(null)
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (undoTimer.current) clearTimeout(undoTimer.current)
+    },
+    [],
+  )
+
+  function clearDay(meal: Meal) {
+    mealActions.clear(meal.date)
+    setUndo({ meal, title: mealTitle(meal, recipes) })
+    if (undoTimer.current) clearTimeout(undoTimer.current)
+    undoTimer.current = setTimeout(() => setUndo(null), 5000)
+  }
+
+  function onUndo() {
+    if (!undo) return
+    const { meal } = undo
+    mealActions.set(meal.date, { recipeId: meal.recipeId, text: meal.text, note: meal.note })
+    setUndo(null)
+  }
 
   return (
     <div className="space-y-3">
@@ -153,32 +178,35 @@ function WeekView() {
           const isToday = date === today
           return (
             <li key={date}>
-              <Link
-                to={`/essen/tag/${date}`}
-                className={`flex min-h-16 items-center gap-3 rounded-2xl border bg-white px-3 py-2 active:opacity-80 ${
-                  isToday ? 'border-brand-600 ring-1 ring-brand-600' : 'border-slate-200'
-                } ${date < today ? 'opacity-60' : ''}`}
-              >
-                <div className="w-12 shrink-0 text-center">
-                  <p className={`text-sm font-semibold ${isToday ? 'text-brand-700' : ''}`}>{weekdayShort(date)}</p>
-                  <p className="text-xs text-slate-500">{formatYmd(date).slice(0, 6)}</p>
-                </div>
-                <div className="min-w-0 flex-1 space-y-1">
-                  {holiday && <p className="truncate text-xs text-amber-700 dark:text-amber-300">🎉 {holiday.name}</p>}
-                  {meal ? (
-                    <>
-                      <p className="font-medium break-words">
-                        {recipe?.kind && kindIcon(recipe.kind) ? `${kindIcon(recipe.kind)} ` : ''}
-                        {mealTitle(meal, recipes)}
-                      </p>
-                      {recipe && <RecipeBadges recipe={{ ...recipe, kind: null }} />}
-                      {meal.note && <p className="text-xs whitespace-pre-line text-slate-500">{meal.note}</p>}
-                    </>
-                  ) : (
-                    <p className="text-sm text-slate-400">＋ Mittagessen planen</p>
-                  )}
-                </div>
-              </Link>
+              <SwipeToClear onClear={meal ? () => clearDay(meal) : undefined}>
+                <Link
+                  to={`/essen/tag/${date}`}
+                  draggable={false}
+                  className={`flex min-h-16 items-center gap-3 rounded-2xl border bg-white px-3 py-2 active:opacity-80 ${
+                    isToday ? 'border-brand-600 ring-1 ring-brand-600 ring-inset' : 'border-slate-200'
+                  } ${date < today ? 'opacity-60' : ''}`}
+                >
+                  <div className="w-12 shrink-0 text-center">
+                    <p className={`text-sm font-semibold ${isToday ? 'text-brand-700' : ''}`}>{weekdayShort(date)}</p>
+                    <p className="text-xs text-slate-500">{formatYmd(date).slice(0, 6)}</p>
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    {holiday && <p className="truncate text-xs text-amber-700 dark:text-amber-300">🎉 {holiday.name}</p>}
+                    {meal ? (
+                      <>
+                        <p className="font-medium break-words">
+                          {recipe?.kind && kindIcon(recipe.kind) ? `${kindIcon(recipe.kind)} ` : ''}
+                          {mealTitle(meal, recipes)}
+                        </p>
+                        {recipe && <RecipeBadges recipe={{ ...recipe, kind: null }} />}
+                        {meal.note && <p className="text-xs whitespace-pre-line text-slate-500">{meal.note}</p>}
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-400">＋ Mittagessen planen</p>
+                    )}
+                  </div>
+                </Link>
+              </SwipeToClear>
             </li>
           )
         })}
@@ -216,6 +244,28 @@ function WeekView() {
             🛒 Zutaten einkaufen ({needs.length}){from > monday ? ' · ab heute' : ''}
           </Link>
         ))}
+
+      <AnimatePresence>
+        {undo && (
+          <motion.div
+            role="status"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed right-4 left-4 z-30 mx-auto flex max-w-md items-center gap-3 rounded-xl bg-slate-800 py-2 pr-2 pl-4 text-sm text-white shadow-lg dark:bg-slate-200"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 4.75rem)' }}
+          >
+            <span className="min-w-0 flex-1 truncate">„{undo.title}“ entfernt</span>
+            <button
+              type="button"
+              onClick={onUndo}
+              className="min-h-10 rounded-lg px-3 font-semibold text-brand-100 active:bg-slate-700 dark:text-teal-300 dark:active:bg-slate-300"
+            >
+              Rückgängig
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -283,7 +333,10 @@ export function MealDayPage() {
   const [filter, setFilter] = useState<RecipeFilter>(EMPTY_FILTER)
   const [text, setText] = useState(meal && !meal.recipeId ? meal.text : '')
   const [note, setNote] = useState(meal?.note ?? '')
-  const [suggestion, setSuggestion] = useState<Recipe | null>(null)
+  // Vorschlag in der URL, damit er nach „Rezept ansehen“ und Zurück noch da ist
+  const [params, setParams] = useSearchParams()
+  const suggestionId = params.get('vorschlag')
+  const suggestion = (suggestionId && recipes.find((r) => r.id === suggestionId)) || null
   const [moveTo, setMoveTo] = useState('')
   const list = useMemo(() => filterRecipes(recipes, filter), [recipes, filter])
   const soon = useSoonRecipes()
@@ -298,7 +351,8 @@ export function MealDayPage() {
   }
 
   function suggest() {
-    setSuggestion(pickRandom(list, usage, date, { exclude: suggestion?.id ?? null }))
+    const next = pickRandom(list, usage, date, { exclude: suggestion?.id ?? null })
+    setParams(next ? { vorschlag: next.id } : {}, { replace: true })
   }
 
   const holiday = holidayOn(date)
@@ -392,11 +446,19 @@ export function MealDayPage() {
           <div className="space-y-2 rounded-2xl bg-amber-50 p-3 dark:bg-amber-950/50">
             <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Vorschlag</p>
             <ul>
-              <RecipeRow recipe={suggestion} usage={usage.get(suggestion.id)} today={today} onSelect={() => choose(suggestion.id)} highlight />
+              <RecipeRow recipe={suggestion} usage={usage.get(suggestion.id)} today={today} highlight />
             </ul>
-            <Button block onClick={() => choose(suggestion.id)}>
-              Übernehmen
-            </Button>
+            <div className="flex gap-2">
+              <Link
+                to={`/essen/gerichte/${suggestion.id}`}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 active:bg-slate-100"
+              >
+                📖 Rezept ansehen
+              </Link>
+              <Button className="flex-1" onClick={() => choose(suggestion.id)}>
+                Übernehmen
+              </Button>
+            </div>
           </div>
         )}
         {showSoon && (
