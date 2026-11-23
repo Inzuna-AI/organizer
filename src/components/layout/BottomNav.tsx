@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router'
 import type { ComponentType, SVGProps } from 'react'
-import { CalendarIcon, CartIcon, NotesIcon, SettingsIcon, TasksIcon, TodayIcon } from './icons'
+import { CalendarIcon, CartIcon, NotesIcon, TasksIcon, TodayIcon } from './icons'
 
 interface Item {
   to: string
@@ -14,7 +14,6 @@ const ITEMS: Item[] = [
   { to: '/aufgaben', label: 'Aufgaben', icon: TasksIcon },
   { to: '/einkauf', label: 'Einkauf', icon: CartIcon },
   { to: '/notizen', label: 'Notizen', icon: NotesIcon },
-  { to: '/einstellungen', label: 'Einstellungen', icon: SettingsIcon },
 ]
 
 export function BottomNav() {
@@ -30,7 +29,7 @@ export function BottomNav() {
               to={to}
               end={to === '/'}
               className={({ isActive }) =>
-                `flex min-h-14 flex-col items-center justify-center gap-0.5 text-[10px] tracking-tight ${
+                `flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] ${
                   isActive ? 'text-brand-700' : 'text-slate-500'
                 }`
               }

@@ -3,6 +3,11 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.8.1] – 2026-11-23
+
+### Geändert
+- Einstellungen: Das Zahnrad sitzt jetzt ganz rechts in der Kopfleiste neben „Aktualisieren“ statt in der unteren Leiste. Die untere Leiste hat damit Platz für einen weiteren Bereich
+
 ## [1.8.0] – 2026-11-23
 
 ### Neu
