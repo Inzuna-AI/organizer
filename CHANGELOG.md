@@ -3,6 +3,22 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.9.0] – 2026-11-23
+
+### Neu
+- Essensplaner: neuer Punkt „Essen“ in der unteren Leiste
+  - Wochenplan fürs Mittagessen (Montag bis Sonntag, Wochen blättern). Ein Gericht aus der Datenbank wählen oder Freitext wie „Reste“ oder „Essen gehen“, dazu eine Notiz. Verschieben auf einen anderen Tag (ist der belegt, werden die Tage getauscht)
+  - Gerichte-Datenbank: Name, Zutaten mit Menge, Zubereitung/Notiz, Link zum Rezept, Bewertung für Zeit (schnell/mittel/dauert) und Aufwand (leicht/mittel/aufwendig), Art (Fleisch, Geflügel, Fisch, vegetarisch, vegan) und Sättigungsbeilage (Kartoffeln, Nudeln, Reis, Brot …), jeweils auch eigene Werte, Favoriten-Stern
+  - Filter nach Art, Beilage, Zeit, Aufwand und Favoriten; Suche über Name und Zutaten. Pro Gericht steht, wann es zuletzt dran war
+  - „🎲 Was essen wir?“ schlägt ein Gericht vor, das länger nicht dran war
+  - Merkliste „🔖 Bald mal wieder“: Gerichte, die ihr bald wieder essen wollt, ohne schon einen Tag festzulegen. Sie stehen oben im Wochenplan und beim Planen eines Tages ganz oben; sobald ein gemerktes Gericht geplant ist, verschwindet es von der Liste
+  - „Zutaten einkaufen“: Zutaten der geplanten Gerichte (ab heute bzw. für die Woche) auf den Einkaufszettel setzen. Was ihr schon habt, abwählen; was schon auf der Liste steht, wird nicht doppelt angelegt
+- Heute: Abschnitt „Mittagessen“ mit heute und morgen
+- Suche findet auch Gerichte
+
+### Hinweis
+- `scripts/notify.mjs` im Daten-Repo kann aktualisiert werden (nur interne Liste der Datenbereiche, keine neuen Benachrichtigungen)
+
 ## [1.8.1] – 2026-11-23
 
 ### Geändert

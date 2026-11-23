@@ -9,11 +9,11 @@ describe('Reihenfolge der Abschnitte', () => {
 
   it('übernimmt gespeicherte Reihenfolge, entfernt Unbekanntes und Doppeltes', () => {
     const saved = ['done', 'today', 'x', 'today', 'events', 'overdue', 'period', 'links']
-    expect(normalizeOrder(saved)).toEqual(['done', 'today', 'events', 'overdue', 'period', 'links'])
+    expect(normalizeOrder(saved)).toEqual(['done', 'today', 'events', 'meal', 'overdue', 'period', 'links'])
   })
 
   it('fehlende Abschnitte kommen hinter ihren Standard-Vorgänger', () => {
-    expect(normalizeOrder(['done', 'today', 'events'])).toEqual(['done', 'today', 'period', 'links', 'events', 'overdue'])
+    expect(normalizeOrder(['done', 'today', 'events'])).toEqual(['done', 'today', 'period', 'links', 'events', 'meal', 'overdue'])
   })
 
   it('verschieben', () => {

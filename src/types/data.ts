@@ -135,6 +135,51 @@ export interface Note extends BaseRecord {
   pinned: boolean
 }
 
+/** Zutat eines Gerichts; Menge als freier Text („500 g“, „1 Bund“) */
+export interface Ingredient {
+  id: string
+  name: string
+  quantity: string
+}
+
+/** Bewertung in 3 Stufen: 1 = schnell/leicht, 2 = mittel, 3 = dauert/aufwendig; null = keine Angabe */
+export type Rating = 1 | 2 | 3 | null
+
+/** Gericht in der Gerichte-Datenbank des Essensplaners (seit v1.9.0, optionale Sammlung) */
+export interface Recipe extends BaseRecord {
+  title: string
+  ingredients: Ingredient[]
+  /** Zubereitung oder sonstige Notiz */
+  note: string
+  /** Link zum Rezept (optional leer) */
+  link: string
+  /** Geschwindigkeit der Zubereitung */
+  speed: Rating
+  /** Aufwand */
+  effort: Rating
+  /** Sättigungsbeilage, z. B. „Kartoffeln“; null = keine Angabe */
+  side: string | null
+  /** Art, z. B. „Fleisch“, „Fisch“, „vegetarisch“; null = keine Angabe */
+  kind: string | null
+  favorite: boolean
+  /** Merkliste „Bald mal wieder“: Zeitpunkt des Merkens; fehlt/null = nicht gemerkt. Wird beim Planen gelöscht. */
+  soon?: string | null
+}
+
+/**
+ * Mittagessen an einem Tag (seit v1.9.0, optionale Sammlung).
+ * id ist deterministisch `mittag:<JJJJ-MM-TT>`, damit beide Geräte denselben Datensatz verwenden.
+ */
+export interface Meal extends BaseRecord {
+  /** JJJJ-MM-TT */
+  date: string
+  /** Gericht aus der Datenbank; null = Freitext */
+  recipeId: string | null
+  /** Freitext („Reste“, „Essen gehen“), wenn kein Gericht gewählt ist */
+  text: string
+  note: string
+}
+
 export interface NotifySettings {
   newTask: boolean
   assignedToMe: boolean
@@ -179,6 +224,9 @@ export interface DataFile {
   shoppingItems: ShoppingItem[]
   /** Notizen (seit v1.8.0); fehlt in älteren Dateien, normalizeData ergänzt [] */
   notes: Note[]
+  /** Essensplaner: Gerichte und Mittagessen (seit v1.9.0); fehlen in älteren Dateien */
+  recipes: Recipe[]
+  meals: Meal[]
   devices: Device[]
 }
 
@@ -192,6 +240,8 @@ export const COLLECTIONS = [
   'shoppingLists',
   'shoppingItems',
   'notes',
+  'recipes',
+  'meals',
   'devices',
 ] as const
 

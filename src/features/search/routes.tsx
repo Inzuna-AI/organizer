@@ -4,6 +4,7 @@ import { useRoomMap } from '@/features/rooms'
 import { instanceKey, TaskItem, useAllTasks, useTaskInstances } from '@/features/tasks'
 import { EventItem, useAllEvents } from '@/features/events'
 import { NoteCard, useAllNotes } from '@/features/notes'
+import { RecipeRow, searchRecipes, useAllRecipes } from '@/features/meals'
 import { berlinDateString } from '@/lib/dates'
 import type { EventInstance } from '@/lib/events'
 import { searchEvents, searchNotes, searchTasks } from './utils'
@@ -25,8 +26,10 @@ export function SearchPage() {
   const evResult = useMemo(() => searchEvents(events, query, today), [events, query, today])
   const notes = useAllNotes()
   const noteResult = useMemo(() => searchNotes(notes, query), [notes, query])
+  const recipes = useAllRecipes()
+  const recipeResult = useMemo(() => searchRecipes(recipes, query), [recipes, query])
   const total =
-    result.open.length + result.done.length + evResult.upcoming.length + evResult.past.length + noteResult.length
+    result.open.length + result.done.length + evResult.upcoming.length + evResult.past.length + noteResult.length + recipeResult.length
   const evKey = (i: EventInstance) => (i.date ? `${i.event.id}:${i.date}` : i.event.id)
 
   return (
@@ -51,7 +54,7 @@ export function SearchPage() {
           autoFocus
           value={query}
           onChange={(e) => setParams(e.target.value ? { q: e.target.value } : {}, { replace: true })}
-          placeholder="Aufgaben, Termine, Notizen durchsuchen …"
+          placeholder="Aufgaben, Termine, Notizen, Gerichte durchsuchen …"
           aria-label="Suchbegriff"
           enterKeyHint="search"
           className="block min-h-12 w-full rounded-2xl border border-slate-300 bg-white pr-3 pl-10 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
@@ -60,7 +63,7 @@ export function SearchPage() {
 
       {!query.trim() ? (
         <p className="py-8 text-center text-sm text-slate-500">
-          Sucht in Aufgaben (Titel, Beschreibung, Checkliste, Raum), Terminen (Titel, Ort, Notiz) und Notizen (Titel, Text, Punkte). Groß-/Kleinschreibung und Umlaute sind egal.
+          Sucht in Aufgaben (Titel, Beschreibung, Checkliste, Raum), Terminen (Titel, Ort, Notiz), Notizen (Titel, Text, Punkte) und Gerichten (Name, Zutaten, Notiz). Groß-/Kleinschreibung und Umlaute sind egal.
         </p>
       ) : total === 0 ? (
         <p className="py-8 text-center text-sm text-slate-500">Nichts gefunden.</p>
@@ -104,6 +107,16 @@ export function SearchPage() {
                   <li key={n.id}>
                     <NoteCard note={n} />
                   </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {recipeResult.length > 0 && (
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-slate-500">Gerichte ({recipeResult.length})</h2>
+              <ul className="space-y-2">
+                {recipeResult.map((r) => (
+                  <RecipeRow key={r.id} recipe={r} today={today} />
                 ))}
               </ul>
             </section>

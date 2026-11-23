@@ -54,6 +54,13 @@ export const NotesIcon = (p: SVGProps<SVGSVGElement>) => (
   </Icon>
 )
 
+export const MealsIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10" />
+    <path d="M17 21V3c-2 1.5-3 4-3 7v3h3" />
+  </Icon>
+)
+
 export const SettingsIcon = (p: SVGProps<SVGSVGElement>) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="3" />

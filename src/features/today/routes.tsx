@@ -9,6 +9,7 @@ import { involves } from '@/lib/events'
 import { useAppStore, useMe } from '@/store'
 import { instanceKey, TaskItem, todayBuckets, useTaskInstances } from '@/features/tasks'
 import { EventItem, useEventsBetween } from '@/features/events'
+import { MealsTodaySection } from '@/features/meals'
 import { OrderSheet } from './components/OrderSheet'
 import { normalizeOrder, type TodaySection } from './utils'
 
@@ -67,6 +68,7 @@ export function TodayPage() {
         </ul>
       </CollapsibleSection>
     ),
+    meal: <MealsTodaySection today={today} {...section('meal')} />,
     overdue: b.overdue.length > 0 && (
       <CollapsibleSection title={`Überfällig (${b.overdue.length})`} tone="text-red-600" {...section('overdue')}>
         <ul className="space-y-2">

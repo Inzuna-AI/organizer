@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router'
 import type { ComponentType, SVGProps } from 'react'
-import { CalendarIcon, CartIcon, NotesIcon, TasksIcon, TodayIcon } from './icons'
+import { CalendarIcon, CartIcon, MealsIcon, NotesIcon, TasksIcon, TodayIcon } from './icons'
 
 interface Item {
   to: string
@@ -13,6 +13,7 @@ const ITEMS: Item[] = [
   { to: '/kalender', label: 'Kalender', icon: CalendarIcon },
   { to: '/aufgaben', label: 'Aufgaben', icon: TasksIcon },
   { to: '/einkauf', label: 'Einkauf', icon: CartIcon },
+  { to: '/essen', label: 'Essen', icon: MealsIcon },
   { to: '/notizen', label: 'Notizen', icon: NotesIcon },
 ]
 

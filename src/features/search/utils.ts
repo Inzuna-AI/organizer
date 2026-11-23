@@ -1,27 +1,15 @@
 // Suche über alle Aufgaben, Termine und Notizen: reine Logik.
 import type { CalEvent, Note, Task } from '@/types/data'
 import { addDays } from '@/lib/dates'
+import { matches, normalize } from '@/lib/text'
 import { compareInstances, eventsBetween, type EventInstance } from '@/lib/events'
 import type { TaskInstance } from '@/features/tasks'
 
-/** Kleinbuchstaben, ohne Akzente/Umlaut-Punkte, ß → ss: „Küche“ findet man auch mit „kuche“. */
-export function normalize(s: string): string {
-  return s
-    .toLocaleLowerCase('de')
-    .replace(/ß/g, 'ss')
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-}
+export { matches, normalize }
 
 /** Durchsuchbarer Text einer Aufgabe: Titel, Beschreibung, Checkliste, Raum */
 export function haystack(t: Task, roomName: string | undefined): string {
   return normalize([t.title, t.description, ...t.checklist.map((i) => i.title), roomName ?? ''].join('\n'))
-}
-
-/** Alle Wörter der Suche müssen vorkommen (in beliebiger Reihenfolge). */
-export function matches(text: string, query: string): boolean {
-  const words = normalize(query).split(/\s+/).filter(Boolean)
-  return words.length > 0 && words.every((w) => text.includes(w))
 }
 
 /** Durchsuchbarer Text eines Termins: Titel, Ort, Notiz */

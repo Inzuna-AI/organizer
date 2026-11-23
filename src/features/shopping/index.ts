@@ -1,2 +1,3 @@
 export { ShoppingPage } from './routes'
-export { useShoppingLists, shoppingActions } from './store'
+export { useShoppingLists, useAllShoppingItems, shoppingActions } from './store'
+export { planAdd } from './utils'

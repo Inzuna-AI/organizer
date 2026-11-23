@@ -3276,6 +3276,8 @@ var COLLECTIONS = [
   "shoppingLists",
   "shoppingItems",
   "notes",
+  "recipes",
+  "meals",
   "devices"
 ];
 

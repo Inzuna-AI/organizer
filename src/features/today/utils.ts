@@ -1,9 +1,10 @@
 // Reihenfolge der Abschnitte in „Heute“ (pro Gerät gespeichert, Pref `todayOrder`)
 
-export type TodaySection = 'events' | 'overdue' | 'today' | 'period' | 'links' | 'done'
+export type TodaySection = 'events' | 'meal' | 'overdue' | 'today' | 'period' | 'links' | 'done'
 
 export const TODAY_SECTIONS: Array<{ key: TodaySection; label: string }> = [
   { key: 'events', label: '📅 Termine heute' },
+  { key: 'meal', label: '🍽️ Mittagessen' },
   { key: 'overdue', label: '⚠️ Überfällig' },
   { key: 'today', label: '☐ Aufgaben heute' },
   { key: 'period', label: '🗓️ Im Zeitraum' },

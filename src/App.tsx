@@ -13,6 +13,7 @@ import { EditEventPage, NewEventPage } from '@/features/events'
 const CalendarPage = lazy(() => import('@/features/calendar').then((m) => ({ default: m.CalendarPage })))
 import { ShoppingPage } from '@/features/shopping'
 import { NoteEditPage, NotesPage } from '@/features/notes'
+import { MealDayPage, MealShoppingPage, MealsPage, RecipeEditPage } from '@/features/meals'
 import { RoomsPage } from '@/features/rooms'
 import { PersonsPage } from '@/features/persons'
 import { SearchPage } from '@/features/search'
@@ -31,6 +32,9 @@ const TITLES: Record<string, string> = {
   '/einkauf': 'Einkauf',
   '/notizen': 'Notizen',
   '/notizen/neu': 'Neue Notiz',
+  '/essen': 'Essen',
+  '/essen/gerichte/neu': 'Neues Gericht',
+  '/essen/einkaufen': 'Zutaten einkaufen',
   '/suche': 'Suche',
   '/einstellungen': 'Einstellungen',
   '/einstellungen/raeume': 'Räume',
@@ -43,6 +47,7 @@ function parentOf(pathname: string): string | null {
   if (pathname === '/suche') return '/'
   // Termine haben keine eigene Liste, sie stehen im Kalender
   if (pathname.startsWith('/termine/')) return '/kalender'
+  if (pathname.startsWith('/essen/')) return '/essen'
   const parts = pathname.split('/').filter(Boolean)
   return parts.length > 1 ? `/${parts.slice(0, -1).join('/')}` : null
 }
@@ -60,9 +65,9 @@ function Shell() {
   useEffect(() => {
     if (hasData) void notificationActions.refresh()
   }, [device, hasData])
-  const title = TITLES[pathname] ?? (pathname.startsWith('/aufgaben/') ? 'Aufgabe' : pathname.startsWith('/termine/') ? 'Termin' : pathname.startsWith('/notizen/') ? 'Notiz' : 'Organizer')
+  const title = TITLES[pathname] ?? (pathname.startsWith('/aufgaben/') ? 'Aufgabe' : pathname.startsWith('/termine/') ? 'Termin' : pathname.startsWith('/notizen/') ? 'Notiz' : pathname.startsWith('/essen/gerichte/') ? 'Gericht' : pathname.startsWith('/essen/tag/') ? 'Mittagessen' : 'Organizer')
   // Lupe auf den Hauptseiten, die Aufgaben, Termine oder Notizen zeigen
-  const searchable = pathname === '/' || pathname === '/aufgaben' || pathname === '/kalender' || pathname === '/notizen'
+  const searchable = pathname === '/' || pathname === '/aufgaben' || pathname === '/kalender' || pathname === '/notizen' || pathname === '/essen'
 
   return (
     <div className="flex min-h-full flex-col">
@@ -100,6 +105,10 @@ function Shell() {
           <Route path="/notizen" element={<NotesPage />} />
           {/* „neu“ läuft über dieselbe Route, damit die Seite beim Anlegen nicht neu startet */}
           <Route path="/notizen/:id" element={<NoteEditPage />} />
+          <Route path="/essen" element={<MealsPage />} />
+          <Route path="/essen/tag/:date" element={<MealDayPage />} />
+          <Route path="/essen/gerichte/:id" element={<RecipeEditPage />} />
+          <Route path="/essen/einkaufen" element={<MealShoppingPage />} />
           <Route path="/suche" element={<SearchPage />} />
           <Route path="/einstellungen" element={<SettingsPage />} />
           <Route path="/einstellungen/raeume" element={<RoomsPage />} />
