@@ -3,6 +3,11 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.9.1] – 2026-11-23
+
+### Geändert
+- Essensplaner: Die Merkliste „🔖 Bald mal wieder“ steht im Wochenplan jetzt unter den Tagen statt darüber
+
 ## [1.9.0] – 2026-11-23
 
 ### Neu

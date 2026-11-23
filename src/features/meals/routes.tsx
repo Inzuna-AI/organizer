@@ -145,25 +145,6 @@ function WeekView() {
         </button>
       </div>
 
-      {soon.length > 0 && (
-        <section className="rounded-2xl border border-dashed border-brand-600 bg-white p-3">
-          <h3 className="text-sm font-semibold">🔖 Bald mal wieder</h3>
-          <p className="mb-2 text-xs text-slate-500">Tippt auf einen Tag, um eins davon zu planen. Geplant = von der Liste.</p>
-          <div className="flex flex-wrap gap-1.5">
-            {soon.map((r) => (
-              <Link
-                key={r.id}
-                to={`/essen/gerichte/${r.id}`}
-                className="inline-flex min-h-9 items-center rounded-full border border-slate-300 bg-white px-3 text-sm active:bg-slate-100"
-              >
-                {kindIcon(r.kind) ? `${kindIcon(r.kind)} ` : ''}
-                {r.title}
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
       <ul className="space-y-2">
         {days.map((date) => {
           const meal = byDate.get(date)
@@ -202,6 +183,25 @@ function WeekView() {
           )
         })}
       </ul>
+
+      {soon.length > 0 && (
+        <section className="rounded-2xl border border-dashed border-brand-600 bg-white p-3">
+          <h3 className="text-sm font-semibold">🔖 Bald mal wieder</h3>
+          <p className="mb-2 text-xs text-slate-500">Tippt oben auf einen Tag, um eins davon zu planen. Geplant = von der Liste.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {soon.map((r) => (
+              <Link
+                key={r.id}
+                to={`/essen/gerichte/${r.id}`}
+                className="inline-flex min-h-9 items-center rounded-full border border-slate-300 bg-white px-3 text-sm active:bg-slate-100"
+              >
+                {kindIcon(r.kind) ? `${kindIcon(r.kind)} ` : ''}
+                {r.title}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {!isPast &&
         (needs.length === 0 ? (
