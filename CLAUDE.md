@@ -604,7 +604,8 @@ Hinweise zur Umsetzung:
 - Ein Gericht antippen plant es sofort und geht zurück; Freitext mit Schnellwahl („Reste“, „Essen gehen“ …). „Verschieben“ auf einen Tag, an dem schon etwas steht, tauscht beide Tage.
 - Art/Beilage: `DEFAULT_KINDS`/`DEFAULT_SIDES` plus alle in Gerichten verwendeten eigenen Werte (`categoryOptions`), Vergleich ohne Groß-/Kleinschreibung und Umlaute. Symbole über `kindIcon`.
 - Merkliste: 🔖 an jedem Gericht (`recipeActions.toggleSoon`), Checkbox im Formular, Filter 🔖. Im Wochenplan unter den Tagen als Chips (seit v1.9.1), beim Tag-Planen ganz oben (solange kein Filter gesetzt ist). `mealActions.set` mit einem gemerkten Gericht setzt `soon: null`. Reihenfolge: zuerst Gemerktes zuerst (`soonList`).
-- Zufall (`pickRandom`): bevorzugt Gerichte, die mindestens 14 Tage nicht gegessen und nicht schon geplant sind; sonst alle, ohne den gerade gezeigten Vorschlag.
+- Zufall (`pickRandom`): bevorzugt Gerichte, die mindestens 14 Tage nicht gegessen und nicht schon geplant sind; sonst alle, ohne den gerade gezeigten Vorschlag. Der Vorschlag steht in der URL (`?vorschlag=<id>`), damit er nach „📖 Rezept ansehen“ und Zurück erhalten bleibt (seit v1.9.3).
+- Wochenplan: Wischen nach links entfernt das Gericht vom Tag (`components/SwipeToClear.tsx`, Toast mit „Rückgängig“ stellt Gericht, Freitext und Notiz wieder her; seit v1.9.3).
 - Zutaten einkaufen: `collectIngredients` fasst gleiche Namen zusammen, Mengen mit „ + “. Was schon offen auf der Liste steht, ist abgewählt. Hinzufügen über `shoppingActions.add` (holt Abgehaktes zurück, keine Dubletten), optional „Für den nächsten Einkauf“. Gewählte Liste: Pref `mealsShoppingList`; Filter der Gerichte-Ansicht: Pref `mealsFilter`.
 - Heute: neuer sortierbarer Abschnitt `meal`, nur sichtbar, wenn es Gerichte oder Planungen für heute/morgen gibt.
 - Keine Push-Benachrichtigungen; `notify.mjs` kennt die neuen Sammlungen nur in `COLLECTIONS`.
