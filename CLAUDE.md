@@ -591,7 +591,8 @@ Hinweise zur Umsetzung:
 
 ## UI-Grundsätze
 - **Mobile first**: Die Hauptnutzung ist auf dem Handy, Desktop ist ein Bonus.
-- Untere Navigationsleiste: Heute · Kalender · Aufgaben · Einkauf · Notizen · Einstellungen
+- Untere Navigationsleiste: Heute · Kalender · Aufgaben · Einkauf · Notizen (ein Platz ist für den geplanten Essensplaner vorgesehen)
+- Einstellungen: Zahnrad ganz rechts in der Kopfleiste, neben „Aktualisieren“ (seit v1.8.1)
 - Schnelles Anlegen über einen schwebenden „+“-Button
 - Sprache der Oberfläche: **Deutsch**, Datumsformat TT.MM.JJJJ, Woche beginnt am Montag, Zeitzone Europe/Berlin
 - Farben von Räumen müssen auf hellem und dunklem Hintergrund lesbar sein.
