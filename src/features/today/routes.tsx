@@ -1,6 +1,7 @@
 ﻿import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { berlinDateString, formatLongDate } from '@/lib/dates'
+import { addDays, berlinDateString, formatLongDate } from '@/lib/dates'
+import { holidayOn } from '@/lib/holidays'
 import { loadPref, savePref } from '@/lib/storage'
 import { FabChoice } from '@/components/ui/FabChoice'
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
@@ -51,6 +52,10 @@ export function TodayPage() {
     () => (mineOnly ? allEvents.filter((i) => involves(i.event, meId)) : allEvents),
     [allEvents, mineOnly, meId],
   )
+
+  // Feiertag oder besonderer Tag (Advent, Heiligabend, Silvester) heute oder morgen
+  const holidayToday = holidayOn(today)
+  const holidayTomorrow = holidayToday ? null : holidayOn(addDays(today, 1))
 
   const sections: Record<TodaySection, ReactNode> = {
     events: events.length > 0 && (
@@ -160,6 +165,18 @@ export function TodayPage() {
           ))}
         </div>
       </div>
+
+      {(holidayToday || holidayTomorrow) && (
+        <p
+          role="note"
+          className="flex items-center gap-2 rounded-2xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
+        >
+          <span aria-hidden="true">🎉</span>
+          <span>
+            {holidayToday ? 'Heute' : 'Morgen'}: <strong>{(holidayToday ?? holidayTomorrow)!.name}</strong>
+          </span>
+        </p>
+      )}
 
       {order.map((k) => (
         <Fragment key={k}>{sections[k]}</Fragment>

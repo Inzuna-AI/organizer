@@ -1,6 +1,6 @@
 ﻿import { describe, expect, it } from 'vitest'
-import type { CalEvent, Task } from '@/types/data'
-import { haystack, matches, normalize, searchEvents, searchTasks } from './utils'
+import type { CalEvent, Note, Task } from '@/types/data'
+import { haystack, matches, normalize, searchEvents, searchNotes, searchTasks } from './utils'
 
 function task(o: Partial<Task>): Task {
   return {
@@ -93,5 +93,32 @@ describe('searchEvents', () => {
     expect(r.upcoming.map((i) => i.event.id)).toEqual(['a'])
     expect(r.past.map((i) => i.event.id)).toEqual(['b'])
     expect(searchEvents(list, 'training', '2026-11-19').upcoming[0].startAt).toBe('2026-11-23T18:00')
+  })
+})
+
+describe('searchNotes', () => {
+  const n = (id: string, o: Partial<Note>): Note => ({
+    id,
+    updatedAt: '2026-11-01T00:00:00.000Z',
+    deleted: false,
+    createdBy: null,
+    updatedBy: null,
+    title: '',
+    text: '',
+    checklist: [],
+    color: null,
+    pinned: false,
+    ...o,
+  })
+
+  it('findet Titel, Text und Punkte, ohne gelöschte; angeheftete zuerst', () => {
+    const list = [
+      n('a', { title: 'Geschenke', text: 'Buch für Lena' }),
+      n('b', { checklist: [{ id: 'x', title: 'Geschenkpapier', done: false }], pinned: true }),
+      n('c', { title: 'Geschenke alt', deleted: true }),
+      n('d', { title: 'WLAN', text: 'Passwort' }),
+    ]
+    expect(searchNotes(list, 'geschenk').map((x) => x.id)).toEqual(['b', 'a'])
+    expect(searchNotes(list, 'fur lena').map((x) => x.id)).toEqual(['a'])
   })
 })

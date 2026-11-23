@@ -16,6 +16,7 @@ function data(rooms: Room[], extra: Partial<DataFile> = {}): DataFile {
     events: [],
     shoppingLists: [],
     shoppingItems: [],
+    notes: [],
     devices: [],
     ...extra,
   }

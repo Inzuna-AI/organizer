@@ -3,6 +3,21 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.8.0] – 2026-11-23
+
+### Neu
+- Notizen: eigener Punkt „Notizen“ in der unteren Leiste. Gemeinsame Notizzettel mit Titel, freiem Text und optional Punkten zum Abhaken. Zettel lassen sich einfärben und oben anheften. Gespeichert wird automatisch beim Tippen, ein leer verlassener Zettel wird verworfen. Löschen mit „Rückgängig“
+- Suche findet auch Notizen (Titel, Text, Punkte)
+- Benachrichtigungen: „Neue Notiz“, wenn die andere Person einen Zettel anlegt (abschaltbar). Bearbeiten und Abhaken lösen nichts aus
+- Kalender: gesetzliche Feiertage (Bremen, inkl. Reformationstag) sowie die vier Adventssonntage, Heiligabend und Silvester als eigener Feiertags-Hintergrund mit Namen, nicht als Termin. Nicht anklickbar oder verschiebbar
+- Heute: Hinweis „🎉 Heute: …“ bzw. „Morgen: …“
+
+### Geändert
+- Kalender: Einträge, die sich zeitlich überschneiden, stehen in Tag- und Wochenansicht nebeneinander statt übereinander
+
+### Hinweis
+- Für die Benachrichtigung „Neue Notiz“ muss `scripts/notify.mjs` im Daten-Repo aktualisiert werden
+
 ## [1.7.0] – 2026-11-21
 
 ### Neu

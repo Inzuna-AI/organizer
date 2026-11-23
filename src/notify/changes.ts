@@ -1,5 +1,5 @@
 ﻿// Benachrichtigungen bei Änderungen: alten und neuen Stand von data.json vergleichen.
-import type { CalEvent, DataFile, Device, Occurrence, Task } from '@/types/data'
+import type { CalEvent, DataFile, Device, Note, Occurrence, Task } from '@/types/data'
 import { addDays } from '@/lib/dates'
 import { eventsBetween, involves, type EventInstance } from '@/lib/events'
 import { instanceAt, isSeries } from '@/lib/recurrence'
@@ -20,7 +20,7 @@ import {
 import { berlinParts } from './time'
 
 export type ChangeKind =
-  'newTask' | 'assigned' | 'completed' | 'changed' | 'newShoppingItem' | 'newEvent' | 'changedEvent'
+  'newTask' | 'assigned' | 'completed' | 'changed' | 'newShoppingItem' | 'newEvent' | 'changedEvent' | 'newNote'
 
 export interface ChangeEvent {
   kind: ChangeKind
@@ -30,6 +30,8 @@ export interface ChangeEvent {
   taskId: string | null
   /** bei Terminen (newEvent, changedEvent) */
   eventId?: string
+  /** bei Notizen (newNote) */
+  noteId?: string
   /** Termin einer Serie (ursprüngliches Datum) */
   date: string | null
   roomId: string | null
@@ -214,7 +216,33 @@ export function detectChanges(prev: DataFile, next: DataFile, today: string): Ch
     }
   }
 
+  // Notizen: nur neu angelegte (mit Inhalt); Bearbeiten und Abhaken lösen nichts aus
+  const prevNotes = new Map((prev.notes ?? []).map((n) => [n.id, n]))
+  for (const n of next.notes ?? []) {
+    if (n.deleted) continue
+    const pn = prevNotes.get(n.id)
+    if (pn && !pn.deleted) continue
+    const title = noteTitle(n)
+    if (!title) continue
+    events.push({
+      kind: 'newNote',
+      by: n.createdBy ?? n.updatedBy,
+      title,
+      taskId: null,
+      noteId: n.id,
+      date: null,
+      roomId: null,
+      assigneeIds: [],
+    })
+  }
+
   return dedupe(events)
+}
+
+/** Titel einer Notiz für die Nachricht: Titel, sonst erste Zeile, sonst erster Punkt; leer = '' */
+function noteTitle(n: Note): string {
+  const line = n.text.split('\n').find((l) => l.trim())?.trim()
+  return n.title.trim() || line || n.checklist.find((i) => i.title.trim())?.title.trim() || ''
 }
 
 function dedupe(events: ChangeEvent[]): ChangeEvent[] {
@@ -224,7 +252,7 @@ function dedupe(events: ChangeEvent[]): ChangeEvent[] {
     // Abhaken bei „nach Erledigung“ verschiebt auch den Termin – das ist keine eigene Änderung
     if (e.kind === 'changed' && completed.has(e.taskId)) return false
     if (e.kind === 'newShoppingItem') return true
-    const key = `${e.kind}|${e.taskId ?? e.eventId}|${e.kind === 'completed' ? e.date : ''}|${e.assignee ?? ''}`
+    const key = `${e.kind}|${e.taskId ?? e.eventId ?? e.noteId}|${e.kind === 'completed' ? e.date : ''}|${e.assignee ?? ''}`
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -241,6 +269,8 @@ export function eventsForDevice(device: Device, events: ChangeEvent[]): ChangeEv
     switch (e.kind) {
       case 'newShoppingItem':
         return n.newShoppingItem
+      case 'newNote':
+        return n.newNote ?? true
       case 'assigned':
         return n.assignedToMe && e.assignee === me && relevant(device, e.roomId, [me])
       case 'newTask':
@@ -268,12 +298,14 @@ const PLURAL: Record<ChangeKind, (n: number) => string> = {
   newShoppingItem: (n) => (n === 1 ? '1 Einkaufsartikel' : `${n} Einkaufsartikel`),
   newEvent: (n) => (n === 1 ? '1 neuer Termin' : `${n} neue Termine`),
   changedEvent: (n) => (n === 1 ? '1 Termin geändert' : `${n} Termine geändert`),
+  newNote: (n) => (n === 1 ? '1 neue Notiz' : `${n} neue Notizen`),
 }
 
 /** Link zu einer Aufgabe oder einem Termin */
 function targetUrl(e: ChangeEvent): string | null {
   if (e.taskId) return taskUrl(e.taskId, e.date)
   if (e.eventId) return eventUrl(e.eventId, e.date)
+  if (e.noteId) return `#/notizen/${e.noteId}`
   return null
 }
 
@@ -285,12 +317,14 @@ export function composeMessage(events: ChangeEvent[], data: DataFile): PushPaylo
   const who = actor ?? 'Mehrere'
   const kinds = [...new Set(events.map((e) => e.kind))]
   const onlyShopping = kinds.length === 1 && kinds[0] === 'newShoppingItem'
-  const targets = [...new Set(events.map((e) => e.taskId ?? e.eventId).filter(Boolean))]
+  const targets = [...new Set(events.map((e) => e.taskId ?? e.eventId ?? e.noteId).filter(Boolean))]
   const url = onlyShopping
     ? '#/einkauf'
     : targets.length === 1 && kinds.every((k) => k !== 'newShoppingItem')
-      ? (targetUrl(events.find((e) => e.taskId ?? e.eventId)!) ?? '#/')
-      : '#/'
+      ? (targetUrl(events.find((e) => e.taskId ?? e.eventId ?? e.noteId)!) ?? '#/')
+      : kinds.length === 1 && kinds[0] === 'newNote'
+        ? '#/notizen'
+        : '#/'
 
   if (events.length === 1) {
     const e = events[0]
@@ -310,6 +344,8 @@ export function composeMessage(events: ChangeEvent[], data: DataFile): PushPaylo
         return { title: `Neuer Termin von ${who}`, body: withWhen, url }
       case 'changedEvent':
         return { title: `${who} hat einen Termin geändert`, body: withWhen, url }
+      case 'newNote':
+        return { title: `Neue Notiz von ${who}`, body: e.title, url }
     }
   }
 
@@ -331,6 +367,8 @@ export function composeMessage(events: ChangeEvent[], data: DataFile): PushPaylo
         return { title: `${who} hat ${n} neue Termine angelegt`, body: titles, url }
       case 'changedEvent':
         return { title: `${who} hat ${n} Termine geändert`, body: titles, url }
+      case 'newNote':
+        return { title: `${who} hat ${n} neue Notizen angelegt`, body: titles, url }
     }
   }
 

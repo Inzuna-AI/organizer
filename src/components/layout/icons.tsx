@@ -47,6 +47,13 @@ export const CartIcon = (p: SVGProps<SVGSVGElement>) => (
   </Icon>
 )
 
+export const NotesIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M5 3h14a1 1 0 0 1 1 1v11l-6 6H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+    <path d="M14 21v-5a1 1 0 0 1 1-1h5M8 8h8M8 12h5" />
+  </Icon>
+)
+
 export const SettingsIcon = (p: SVGProps<SVGSVGElement>) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="3" />

@@ -92,3 +92,46 @@
   font-size: 0.75rem;
   color: #0f766e;
 }
+
+/* Feiertage: Hintergrund-Eintrag über den ganzen Tag, Name nur oben (ganztägig bzw. Monatsfeld) */
+.organizer-calendar .fc .fc-bg-event.cal-holiday {
+  background: rgb(245 158 11 / 0.2);
+  opacity: 1;
+  pointer-events: none;
+}
+/* In den Stunden nur eine leichte Tönung, ohne Namen */
+.organizer-calendar .fc .fc-timegrid-col .fc-bg-event.cal-holiday {
+  background: rgb(245 158 11 / 0.07);
+}
+.organizer-calendar .fc .fc-timegrid-col .cal-holiday-label {
+  display: none;
+}
+.organizer-calendar .cal-holiday-label {
+  padding: 1px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  font-style: normal;
+  line-height: 1.25;
+  color: #92400e;
+  /* schmale Spalten: bis zu zwei Zeilen statt abgeschnitten */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.organizer-calendar .cal-holiday-num {
+  color: #b45309;
+}
+.dark .organizer-calendar .fc .fc-bg-event.cal-holiday {
+  background: rgb(251 191 36 / 0.16);
+}
+.dark .organizer-calendar .fc .fc-timegrid-col .fc-bg-event.cal-holiday {
+  background: rgb(251 191 36 / 0.06);
+}
+.dark .organizer-calendar .cal-holiday-label,
+.dark .organizer-calendar .cal-holiday-num {
+  color: #fcd34d;
+}

@@ -1,5 +1,5 @@
-// Suche über alle Aufgaben und Termine: reine Logik.
-import type { CalEvent, Task } from '@/types/data'
+// Suche über alle Aufgaben, Termine und Notizen: reine Logik.
+import type { CalEvent, Note, Task } from '@/types/data'
 import { addDays } from '@/lib/dates'
 import { compareInstances, eventsBetween, type EventInstance } from '@/lib/events'
 import type { TaskInstance } from '@/features/tasks'
@@ -50,6 +50,19 @@ export function searchEvents(events: CalEvent[], query: string, today: string, l
   upcoming.sort(compareInstances)
   past.sort((a, b) => compareInstances(b, a))
   return { upcoming: upcoming.slice(0, limit), past: past.slice(0, limit) }
+}
+
+/** Durchsuchbarer Text einer Notiz: Titel, Text, Punkte */
+export function noteHaystack(n: Note): string {
+  return normalize([n.title, n.text, ...n.checklist.map((i) => i.title)].join('\n'))
+}
+
+/** Passende Notizen: angeheftete zuerst, sonst zuletzt geänderte oben */
+export function searchNotes(notes: Note[], query: string, limit = 50): Note[] {
+  return notes
+    .filter((n) => !n.deleted && matches(noteHaystack(n), query))
+    .sort((a, b) => (a.pinned === b.pinned ? b.updatedAt.localeCompare(a.updatedAt) : a.pinned ? -1 : 1))
+    .slice(0, limit)
 }
 
 export interface SearchResult {

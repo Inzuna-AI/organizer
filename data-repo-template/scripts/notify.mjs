@@ -3275,6 +3275,7 @@ var COLLECTIONS = [
   "events",
   "shoppingLists",
   "shoppingItems",
+  "notes",
   "devices"
 ];
 
@@ -4098,7 +4099,29 @@ function detectChanges(prev, next, today) {
       });
     }
   }
+  const prevNotes = new Map((prev.notes ?? []).map((n) => [n.id, n]));
+  for (const n of next.notes ?? []) {
+    if (n.deleted) continue;
+    const pn = prevNotes.get(n.id);
+    if (pn && !pn.deleted) continue;
+    const title = noteTitle(n);
+    if (!title) continue;
+    events.push({
+      kind: "newNote",
+      by: n.createdBy ?? n.updatedBy,
+      title,
+      taskId: null,
+      noteId: n.id,
+      date: null,
+      roomId: null,
+      assigneeIds: []
+    });
+  }
   return dedupe(events);
+}
+function noteTitle(n) {
+  const line = n.text.split("\n").find((l) => l.trim())?.trim();
+  return n.title.trim() || line || n.checklist.find((i) => i.title.trim())?.title.trim() || "";
 }
 function dedupe(events) {
   const completed = new Set(events.filter((e) => e.kind === "completed").map((e) => e.taskId));
@@ -4106,7 +4129,7 @@ function dedupe(events) {
   return events.filter((e) => {
     if (e.kind === "changed" && completed.has(e.taskId)) return false;
     if (e.kind === "newShoppingItem") return true;
-    const key = `${e.kind}|${e.taskId ?? e.eventId}|${e.kind === "completed" ? e.date : ""}|${e.assignee ?? ""}`;
+    const key = `${e.kind}|${e.taskId ?? e.eventId ?? e.noteId}|${e.kind === "completed" ? e.date : ""}|${e.assignee ?? ""}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -4120,6 +4143,8 @@ function eventsForDevice(device, events) {
     switch (e.kind) {
       case "newShoppingItem":
         return n.newShoppingItem;
+      case "newNote":
+        return n.newNote ?? true;
       case "assigned":
         return n.assignedToMe && e.assignee === me && relevant(device, e.roomId, [me]);
       case "newTask":
@@ -4143,11 +4168,13 @@ var PLURAL = {
   changed: (n) => `${n} ge\xE4ndert`,
   newShoppingItem: (n) => n === 1 ? "1 Einkaufsartikel" : `${n} Einkaufsartikel`,
   newEvent: (n) => n === 1 ? "1 neuer Termin" : `${n} neue Termine`,
-  changedEvent: (n) => n === 1 ? "1 Termin ge\xE4ndert" : `${n} Termine ge\xE4ndert`
+  changedEvent: (n) => n === 1 ? "1 Termin ge\xE4ndert" : `${n} Termine ge\xE4ndert`,
+  newNote: (n) => n === 1 ? "1 neue Notiz" : `${n} neue Notizen`
 };
 function targetUrl(e) {
   if (e.taskId) return taskUrl(e.taskId, e.date);
   if (e.eventId) return eventUrl(e.eventId, e.date);
+  if (e.noteId) return `#/notizen/${e.noteId}`;
   return null;
 }
 function composeMessage(events, data) {
@@ -4157,8 +4184,8 @@ function composeMessage(events, data) {
   const who = actor ?? "Mehrere";
   const kinds = [...new Set(events.map((e) => e.kind))];
   const onlyShopping = kinds.length === 1 && kinds[0] === "newShoppingItem";
-  const targets = [...new Set(events.map((e) => e.taskId ?? e.eventId).filter(Boolean))];
-  const url = onlyShopping ? "#/einkauf" : targets.length === 1 && kinds.every((k) => k !== "newShoppingItem") ? targetUrl(events.find((e) => e.taskId ?? e.eventId)) ?? "#/" : "#/";
+  const targets = [...new Set(events.map((e) => e.taskId ?? e.eventId ?? e.noteId).filter(Boolean))];
+  const url = onlyShopping ? "#/einkauf" : targets.length === 1 && kinds.every((k) => k !== "newShoppingItem") ? targetUrl(events.find((e) => e.taskId ?? e.eventId ?? e.noteId)) ?? "#/" : kinds.length === 1 && kinds[0] === "newNote" ? "#/notizen" : "#/";
   if (events.length === 1) {
     const e = events[0];
     const withWhen = e.when ? `${e.title} \xB7 ${e.when}` : e.title;
@@ -4177,6 +4204,8 @@ function composeMessage(events, data) {
         return { title: `Neuer Termin von ${who}`, body: withWhen, url };
       case "changedEvent":
         return { title: `${who} hat einen Termin ge\xE4ndert`, body: withWhen, url };
+      case "newNote":
+        return { title: `Neue Notiz von ${who}`, body: e.title, url };
     }
   }
   const titles = listTitles(events.map((e) => e.title));
@@ -4197,6 +4226,8 @@ function composeMessage(events, data) {
         return { title: `${who} hat ${n} neue Termine angelegt`, body: titles, url };
       case "changedEvent":
         return { title: `${who} hat ${n} Termine ge\xE4ndert`, body: titles, url };
+      case "newNote":
+        return { title: `${who} hat ${n} neue Notizen angelegt`, body: titles, url };
     }
   }
   const counts = kinds.map((k) => PLURAL[k](events.filter((e) => e.kind === k).length));

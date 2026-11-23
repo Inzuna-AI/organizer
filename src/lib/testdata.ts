@@ -12,6 +12,7 @@ export function emptyData(): DataFile {
     events: [],
     shoppingLists: [],
     shoppingItems: [],
+    notes: [],
     devices: [],
   }
 }

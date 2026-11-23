@@ -46,6 +46,7 @@ export function createInitialData(names: string[]): DataFile {
     events: [],
     shoppingLists,
     shoppingItems: [],
+    notes: [],
     devices: [],
   }
 }

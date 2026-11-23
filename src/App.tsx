@@ -12,6 +12,7 @@ import { EditEventPage, NewEventPage } from '@/features/events'
 // Kalender (FullCalendar) erst beim Öffnen laden, damit der Start schnell bleibt
 const CalendarPage = lazy(() => import('@/features/calendar').then((m) => ({ default: m.CalendarPage })))
 import { ShoppingPage } from '@/features/shopping'
+import { NoteEditPage, NotesPage } from '@/features/notes'
 import { RoomsPage } from '@/features/rooms'
 import { PersonsPage } from '@/features/persons'
 import { SearchPage } from '@/features/search'
@@ -28,6 +29,8 @@ const TITLES: Record<string, string> = {
   '/aufgaben/neu': 'Neue Aufgabe',
   '/termine/neu': 'Neuer Termin',
   '/einkauf': 'Einkauf',
+  '/notizen': 'Notizen',
+  '/notizen/neu': 'Neue Notiz',
   '/suche': 'Suche',
   '/einstellungen': 'Einstellungen',
   '/einstellungen/raeume': 'Räume',
@@ -57,9 +60,9 @@ function Shell() {
   useEffect(() => {
     if (hasData) void notificationActions.refresh()
   }, [device, hasData])
-  const title = TITLES[pathname] ?? (pathname.startsWith('/aufgaben/') ? 'Aufgabe' : pathname.startsWith('/termine/') ? 'Termin' : 'Organizer')
-  // Lupe auf den Hauptseiten, die Aufgaben zeigen
-  const searchable = pathname === '/' || pathname === '/aufgaben' || pathname === '/kalender'
+  const title = TITLES[pathname] ?? (pathname.startsWith('/aufgaben/') ? 'Aufgabe' : pathname.startsWith('/termine/') ? 'Termin' : pathname.startsWith('/notizen/') ? 'Notiz' : 'Organizer')
+  // Lupe auf den Hauptseiten, die Aufgaben, Termine oder Notizen zeigen
+  const searchable = pathname === '/' || pathname === '/aufgaben' || pathname === '/kalender' || pathname === '/notizen'
 
   return (
     <div className="flex min-h-full flex-col">
@@ -92,6 +95,9 @@ function Shell() {
           <Route path="/termine/neu" element={<NewEventPage />} />
           <Route path="/termine/:id" element={<EditEventPage />} />
           <Route path="/einkauf" element={<ShoppingPage />} />
+          <Route path="/notizen" element={<NotesPage />} />
+          {/* „neu“ läuft über dieselbe Route, damit die Seite beim Anlegen nicht neu startet */}
+          <Route path="/notizen/:id" element={<NoteEditPage />} />
           <Route path="/suche" element={<SearchPage />} />
           <Route path="/einstellungen" element={<SettingsPage />} />
           <Route path="/einstellungen/raeume" element={<RoomsPage />} />

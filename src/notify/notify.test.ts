@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CalEvent, DataFile, Device, NotifySettings, Occurrence, ShoppingItem, Task } from '@/types/data'
+import type { CalEvent, DataFile, Device, Note, NotifySettings, Occurrence, ShoppingItem, Task } from '@/types/data'
 import { changeRun, composeMessage, detectChanges, eventsForDevice, testMessages } from './changes'
 import { expireDevices } from './common'
 import { emptyState, reminderRun } from './reminders'
@@ -96,6 +96,7 @@ function data(o: Partial<DataFile> = {}): DataFile {
     events: [],
     shoppingLists: [],
     shoppingItems: [],
+    notes: [],
     devices: [device('d-me', ME), device('d-lena', LENA)],
     ...o,
   }
@@ -325,6 +326,61 @@ describe('Änderungen', () => {
       data(),
     )
     expect(msg).toMatchObject({ title: 'Neues im Organizer', body: '1 erledigt · 1 Einkaufsartikel', url: '#/' })
+  })
+})
+
+describe('Notizen', () => {
+  function note(id: string, o: Partial<Note> = {}): Note {
+    return {
+      id,
+      updatedAt: T1,
+      deleted: false,
+      createdBy: LENA,
+      updatedBy: LENA,
+      title: 'Geschenkideen',
+      text: '',
+      checklist: [],
+      color: null,
+      pinned: false,
+      ...o,
+    }
+  }
+  const devices = [device('d-me', ME), device('d-lena', LENA)]
+
+  it('neue Notiz der anderen Person → Nachricht mit Link, nicht an die eigene', () => {
+    const prev = data({ devices })
+    const msgs = changeRun(prev, { ...prev, notes: [note('n1')] }, NOON)
+    expect(msgs).toHaveLength(1)
+    expect(msgs[0].device.id).toBe('d-me')
+    expect(msgs[0].payload).toMatchObject({ title: 'Neue Notiz von Lena', body: 'Geschenkideen', url: '#/notizen/n1' })
+  })
+
+  it('ohne Titel zählt die erste Zeile; leere Notizen und Bearbeiten lösen nichts aus', () => {
+    const prev = data({ devices, notes: [note('alt')] })
+    const next = {
+      ...prev,
+      notes: [
+        note('alt', { text: 'geändert', updatedAt: '2026-11-19T10:00:00.000Z' }),
+        note('leer', { title: '', text: '  ' }),
+        note('ohne', { title: '', text: '\nWLAN Gäste\nxyz' }),
+      ],
+    }
+    const changes = detectChanges(prev, next, '2026-11-19').filter((e) => e.kind === 'newNote')
+    expect(changes.map((e) => e.title)).toEqual(['WLAN Gäste'])
+  })
+
+  it('Schalter „Neue Notiz“ aus → keine Nachricht; mehrere werden gebündelt', () => {
+    const prev = data({ devices: [device('d-me', ME, { newNote: false })] })
+    expect(changeRun(prev, { ...prev, notes: [note('n1')] }, NOON)).toEqual([])
+    const on = data({ devices })
+    const msgs = changeRun(on, { ...on, notes: [note('n1'), note('n2', { title: 'WLAN' })] }, NOON)
+    expect(msgs[0].payload).toMatchObject({ title: 'Lena hat 2 neue Notizen angelegt', url: '#/notizen' })
+  })
+
+  it('Daten ohne notes (ältere Datei) brechen nichts', () => {
+    const prev = data({ devices }) as Partial<DataFile>
+    delete prev.notes
+    expect(changeRun(prev as DataFile, prev as DataFile, NOON)).toEqual([])
   })
 })
 

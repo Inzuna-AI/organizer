@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router'
 import type { ComponentType, SVGProps } from 'react'
-import { CalendarIcon, CartIcon, SettingsIcon, TasksIcon, TodayIcon } from './icons'
+import { CalendarIcon, CartIcon, NotesIcon, SettingsIcon, TasksIcon, TodayIcon } from './icons'
 
 interface Item {
   to: string
@@ -13,6 +13,7 @@ const ITEMS: Item[] = [
   { to: '/kalender', label: 'Kalender', icon: CalendarIcon },
   { to: '/aufgaben', label: 'Aufgaben', icon: TasksIcon },
   { to: '/einkauf', label: 'Einkauf', icon: CartIcon },
+  { to: '/notizen', label: 'Notizen', icon: NotesIcon },
   { to: '/einstellungen', label: 'Einstellungen', icon: SettingsIcon },
 ]
 
@@ -24,18 +25,18 @@ export function BottomNav() {
     >
       <ul className="mx-auto flex max-w-xl">
         {ITEMS.map(({ to, label, icon: IconCmp }) => (
-          <li key={to} className="flex-1">
+          <li key={to} className="min-w-0 flex-1">
             <NavLink
               to={to}
               end={to === '/'}
               className={({ isActive }) =>
-                `flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] ${
+                `flex min-h-14 flex-col items-center justify-center gap-0.5 text-[10px] tracking-tight ${
                   isActive ? 'text-brand-700' : 'text-slate-500'
                 }`
               }
             >
               <IconCmp />
-              <span>{label}</span>
+              <span className="max-w-full truncate px-0.5">{label}</span>
             </NavLink>
           </li>
         ))}

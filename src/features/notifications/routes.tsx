@@ -186,6 +186,11 @@ export function NotificationsPage() {
                 onChange={(v) => set({ newEvent: v })}
               />
               <Toggle
+                label="Neue Notiz"
+                checked={n.newNote ?? true}
+                onChange={(v) => set({ newNote: v })}
+              />
+              <Toggle
                 label="Neuer Artikel auf dem Einkaufszettel"
                 hint="gebündelt pro Speichern"
                 checked={n.newShoppingItem}

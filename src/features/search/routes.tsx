@@ -3,9 +3,10 @@ import { useSearchParams } from 'react-router'
 import { useRoomMap } from '@/features/rooms'
 import { instanceKey, TaskItem, useAllTasks, useTaskInstances } from '@/features/tasks'
 import { EventItem, useAllEvents } from '@/features/events'
+import { NoteCard, useAllNotes } from '@/features/notes'
 import { berlinDateString } from '@/lib/dates'
 import type { EventInstance } from '@/lib/events'
-import { searchEvents, searchTasks } from './utils'
+import { searchEvents, searchNotes, searchTasks } from './utils'
 
 export function SearchPage() {
   const [params, setParams] = useSearchParams()
@@ -22,7 +23,10 @@ export function SearchPage() {
   )
   const today = berlinDateString()
   const evResult = useMemo(() => searchEvents(events, query, today), [events, query, today])
-  const total = result.open.length + result.done.length + evResult.upcoming.length + evResult.past.length
+  const notes = useAllNotes()
+  const noteResult = useMemo(() => searchNotes(notes, query), [notes, query])
+  const total =
+    result.open.length + result.done.length + evResult.upcoming.length + evResult.past.length + noteResult.length
   const evKey = (i: EventInstance) => (i.date ? `${i.event.id}:${i.date}` : i.event.id)
 
   return (
@@ -47,7 +51,7 @@ export function SearchPage() {
           autoFocus
           value={query}
           onChange={(e) => setParams(e.target.value ? { q: e.target.value } : {}, { replace: true })}
-          placeholder="Aufgaben und Termine durchsuchen …"
+          placeholder="Aufgaben, Termine, Notizen durchsuchen …"
           aria-label="Suchbegriff"
           enterKeyHint="search"
           className="block min-h-12 w-full rounded-2xl border border-slate-300 bg-white pr-3 pl-10 text-base outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
@@ -56,7 +60,7 @@ export function SearchPage() {
 
       {!query.trim() ? (
         <p className="py-8 text-center text-sm text-slate-500">
-          Sucht in Aufgaben (Titel, Beschreibung, Checkliste, Raum) und Terminen (Titel, Ort, Notiz). Groß-/Kleinschreibung und Umlaute sind egal.
+          Sucht in Aufgaben (Titel, Beschreibung, Checkliste, Raum), Terminen (Titel, Ort, Notiz) und Notizen (Titel, Text, Punkte). Groß-/Kleinschreibung und Umlaute sind egal.
         </p>
       ) : total === 0 ? (
         <p className="py-8 text-center text-sm text-slate-500">Nichts gefunden.</p>
@@ -88,6 +92,18 @@ export function SearchPage() {
               <ul className="space-y-2">
                 {result.done.map((t) => (
                   <TaskItem key={instanceKey(t)} task={t} showDate />
+                ))}
+              </ul>
+            </section>
+          )}
+          {noteResult.length > 0 && (
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-slate-500">Notizen ({noteResult.length})</h2>
+              <ul className="grid grid-cols-2 items-start gap-3">
+                {noteResult.map((n) => (
+                  <li key={n.id}>
+                    <NoteCard note={n} />
+                  </li>
                 ))}
               </ul>
             </section>

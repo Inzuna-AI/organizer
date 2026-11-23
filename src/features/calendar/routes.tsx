@@ -9,6 +9,7 @@ import type { DatesSetArg, DayHeaderContentArg, EventClickArg, EventDropArg } fr
 import type { EventResizeDoneArg } from '@fullcalendar/interaction'
 import { loadPref, savePref } from '@/lib/storage'
 import { addDays } from '@/lib/dates'
+import { holidayOn, holidaysBetween } from '@/lib/holidays'
 import { usePersonMap, usePersons } from '@/features/persons'
 import { useRoomMap } from '@/features/rooms'
 import { ChoiceDialog } from '@/components/ui/ChoiceDialog'
@@ -20,6 +21,7 @@ import { InboxStrip } from './components/InboxStrip'
 import {
   eventColor,
   eventsToCalendar,
+  holidaysToCalendar,
   moveChange,
   tasksToEvents,
   toLocalString,
@@ -75,7 +77,14 @@ export function CalendarPage() {
   const ctx = useMemo(() => ({ mode, rooms, persons }), [mode, rooms, persons])
   const calEvents = useEventsBetween(range?.from ?? '', range?.to ?? '')
   const events = useMemo<CalendarEntry[]>(
-    () => (range ? [...eventsToCalendar(calEvents, personList), ...tasksToEvents(tasks, ctx, { occurrences, ...range })] : []),
+    () =>
+      range
+        ? [
+            ...holidaysToCalendar(holidaysBetween(range.from, range.to)),
+            ...eventsToCalendar(calEvents, personList),
+            ...tasksToEvents(tasks, ctx, { occurrences, ...range }),
+          ]
+        : [],
     [tasks, ctx, occurrences, range, calEvents, personList],
   )
   const inbox = useMemo(() => tasks.filter((t) => !t.deleted && t.status === 'open' && isInbox(t)), [tasks])
@@ -118,6 +127,7 @@ export function CalendarPage() {
   function onEventClick(arg: EventClickArg) {
     arg.jsEvent.preventDefault()
     const p = arg.event.extendedProps as CalendarEntry['extendedProps']
+    if (p.kind === 'holiday') return
     if (p.kind === 'event') {
       navigate(p.date ? `/termine/${p.eventId}?datum=${p.date}` : `/termine/${p.eventId}`)
       return
@@ -134,6 +144,7 @@ export function CalendarPage() {
   function onEventDrop(arg: EventDropArg) {
     if (!arg.event.start) return arg.revert()
     const p = arg.event.extendedProps as CalendarEntry['extendedProps']
+    if (p.kind === 'holiday') return arg.revert()
     const change = moveChange(arg.event.start, arg.event.allDay, arg.event.end)
     if (p.kind === 'event') {
       if (p.date) {
@@ -168,6 +179,7 @@ export function CalendarPage() {
   function onEventResize(arg: EventResizeDoneArg) {
     if (!arg.event.start) return arg.revert()
     const p = arg.event.extendedProps as CalendarEntry['extendedProps']
+    if (p.kind === 'holiday') return arg.revert()
     if (p.kind === 'event') {
       const start = toLocalString(arg.event.start, arg.event.allDay)
       eventActions.move(p.eventId, start, eventEnd(arg.event.end, arg.event.allDay))
@@ -234,6 +246,7 @@ export function CalendarPage() {
           eventLongPressDelay={LONG_PRESS_MS}
           selectLongPressDelay={LONG_PRESS_MS}
           dayMaxEvents={3}
+          slotEventOverlap={false}
           nowIndicator
           scrollTime={SCROLL_TIME}
           slotDuration="00:30:00"
@@ -298,14 +311,17 @@ export function CalendarPage() {
 
 const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
 
-/** Spaltenkopf: Monat nur Wochentag, Woche/Tag zweizeilig „Mo / 16“. */
+/** Spaltenkopf: Monat nur Wochentag, Woche/Tag zweizeilig „Mo / 16“ (Feiertag: Zahl in Feiertagsfarbe). */
 function DayHeader(arg: DayHeaderContentArg) {
   const wd = WEEKDAYS[arg.date.getDay()]
   if (arg.view.type === 'dayGridMonth') return <span className="text-xs">{wd}</span>
+  const holiday = holidayOn(toLocalString(arg.date, true))
   return (
-    <span className="flex flex-col items-center leading-tight">
+    <span className="flex flex-col items-center leading-tight" title={holiday ? `Feiertag: ${holiday.name}` : undefined}>
       <span className="text-[11px] font-normal text-slate-500">{wd}</span>
-      <span className={arg.isToday ? 'font-bold text-brand-700' : ''}>{arg.date.getDate()}</span>
+      <span className={arg.isToday ? 'font-bold text-brand-700' : holiday ? 'cal-holiday-num font-semibold' : ''}>
+        {arg.date.getDate()}
+      </span>
     </span>
   )
 }

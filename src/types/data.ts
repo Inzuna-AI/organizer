@@ -123,6 +123,18 @@ export interface ShoppingItem extends BaseRecord {
   later?: boolean
 }
 
+/** Notizzettel (seit v1.8.0, optionale Sammlung, kein Schema-Wechsel) */
+export interface Note extends BaseRecord {
+  title: string
+  text: string
+  /** Abhakbare Punkte (optional leer) */
+  checklist: ChecklistItem[]
+  /** Farbe des Zettels; null = neutral */
+  color: string | null
+  /** Angeheftet = steht oben */
+  pinned: boolean
+}
+
 export interface NotifySettings {
   newTask: boolean
   assignedToMe: boolean
@@ -131,6 +143,8 @@ export interface NotifySettings {
   newShoppingItem: boolean
   /** Neuer oder geänderter Termin, an dem ich beteiligt bin (seit schemaVersion 2) */
   newEvent: boolean
+  /** Neue Notiz der anderen Person (seit v1.8.0, optional; fehlt = an) */
+  newNote?: boolean
   onlyMyTasks: boolean
   /** Erinnerungen (feste Uhrzeiten der Einträge) auf diesem Gerät an/aus */
   dueReminder: boolean
@@ -163,6 +177,8 @@ export interface DataFile {
   events: CalEvent[]
   shoppingLists: ShoppingList[]
   shoppingItems: ShoppingItem[]
+  /** Notizen (seit v1.8.0); fehlt in älteren Dateien, normalizeData ergänzt [] */
+  notes: Note[]
   devices: Device[]
 }
 
@@ -175,6 +191,7 @@ export const COLLECTIONS = [
   'events',
   'shoppingLists',
   'shoppingItems',
+  'notes',
   'devices',
 ] as const
 

@@ -5,10 +5,18 @@ import type { CalEventEntry, CalendarEntry, TaskEvent } from '../utils'
  * Inhalt eines Kalendereintrags.
  * Aufgaben: hell mit farbigem Rand, ☐/☑ vor dem Titel, Raum-Icon, Kürzel-Badges.
  * Termine: vollflächig in Personenfarbe (mehrere Personen gestreift, alle = 👪 Familie).
+ * Feiertage: Hintergrund mit Namen (nur ganztägig).
  * Tag: eine Zeile mit Uhrzeit. Woche (schmale Spalten): Titel umbrechen, Kürzel darunter. Monat: nur Titel.
  */
 export function EventContent(arg: EventContentArg) {
   const props = arg.event.extendedProps as CalendarEntry['extendedProps']
+  if (props.kind === 'holiday') {
+    return (
+      <div className="cal-holiday-label" lang="de" title={`Feiertag: ${arg.event.title}`}>
+        🎉 {arg.event.title}
+      </div>
+    )
+  }
   if (props.kind === 'event') return <CalEventContent arg={arg} props={props} />
   return <TaskContent arg={arg} props={props} />
 }

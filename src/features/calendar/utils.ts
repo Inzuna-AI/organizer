@@ -4,6 +4,7 @@ import { expandRange, isFixedSeries, isSeries } from '@/lib/recurrence'
 import { isPeriodTask } from '@/lib/periods'
 import { addDays } from '@/lib/dates'
 import { isFamily, type EventInstance } from '@/lib/events'
+import type { Holiday } from '@/lib/holidays'
 import { toTaskInstance, type TaskInstance } from '@/features/tasks'
 import { eventBackground } from '@/features/events'
 
@@ -175,7 +176,33 @@ export interface CalEventEntry {
   }
 }
 
-export type CalendarEntry = TaskEvent | CalEventEntry
+/** Feiertag: Hintergrund des ganzen Tages mit Namen, nicht anklickbar oder verschiebbar */
+export interface HolidayEntry {
+  id: string
+  title: string
+  start: string
+  allDay: true
+  display: 'background'
+  classNames: string[]
+  editable: false
+  extendedProps: { kind: 'holiday' }
+}
+
+export type CalendarEntry = TaskEvent | CalEventEntry | HolidayEntry
+
+/** Feiertage → Hintergrund-Einträge (nur in der Zeile „ganztägig“ bzw. im Monatsfeld) */
+export function holidaysToCalendar(list: Holiday[]): HolidayEntry[] {
+  return list.map((h) => ({
+    id: `hol:${h.date}`,
+    title: h.name,
+    start: h.date,
+    allDay: true,
+    display: 'background',
+    classNames: ['cal-holiday'],
+    editable: false,
+    extendedProps: { kind: 'holiday' },
+  }))
+}
 
 /** Termine → Kalendereinträge: vollflächig in Personenfarbe, mehrere Personen gestreift, alle = Familie */
 export function eventsToCalendar(list: EventInstance[], persons: Person[]): CalEventEntry[] {

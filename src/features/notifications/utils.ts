@@ -8,6 +8,7 @@ export const NOTIFY_DEFAULTS: NotifySettings = {
   changedOrMoved: false,
   newShoppingItem: false,
   newEvent: true,
+  newNote: true,
   onlyMyTasks: false,
   dueReminder: true,
   dueReminderMinutesBefore: 60,
