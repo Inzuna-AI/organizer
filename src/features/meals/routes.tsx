@@ -7,6 +7,7 @@ import { holidayOn } from '@/lib/holidays'
 import { loadPref, savePref } from '@/lib/storage'
 import { Button } from '@/components/ui/Button'
 import { Fab } from '@/components/ui/Fab'
+import { Tabs } from '@/components/ui/Tabs'
 import { TextareaField } from '@/components/ui/Field'
 import { TextField } from '@/components/ui/TextField'
 import { useGoBack } from '@/components/layout/useGoBack'
@@ -76,23 +77,14 @@ export function MealsPage() {
   }
   return (
     <div className="space-y-4 p-4">
-      <div className="grid grid-cols-2 rounded-xl bg-slate-200 p-1 text-sm" role="tablist" aria-label="Ansicht">
-        {[
-          { v: 'week' as const, label: '📅 Wochenplan' },
-          { v: 'recipes' as const, label: '📖 Gerichte' },
-        ].map((o) => (
-          <button
-            key={o.v}
-            type="button"
-            role="tab"
-            aria-selected={view === o.v}
-            onClick={() => setView(o.v)}
-            className={`min-h-10 rounded-lg font-medium ${view === o.v ? 'bg-white shadow-sm' : 'text-slate-600'}`}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={view}
+        options={[
+          { value: 'week', label: '📅 Wochenplan' },
+          { value: 'recipes', label: '📖 Gerichte' },
+        ]}
+        onChange={setView}
+      />
       {view === 'week' ? <WeekView /> : <RecipesView />}
     </div>
   )
