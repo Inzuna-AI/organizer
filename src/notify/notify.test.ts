@@ -99,6 +99,7 @@ function data(o: Partial<DataFile> = {}): DataFile {
     notes: [],
     recipes: [],
     meals: [],
+    timetable: [],
     devices: [device('d-me', ME), device('d-lena', LENA)],
     ...o,
   }

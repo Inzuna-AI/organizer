@@ -15,6 +15,7 @@ export function emptyData(): DataFile {
     notes: [],
     recipes: [],
     meals: [],
+    timetable: [],
     devices: [],
   }
 }

@@ -180,6 +180,21 @@ export interface Meal extends BaseRecord {
   note: string
 }
 
+/**
+ * Ein Feld im Stundenplan (seit v1.10.0, optionale Sammlung, ohne Personenbezug).
+ * id deterministisch `stundenplan:<tag>:<zeile>:<spalte>`, damit beide Geräte dasselbe Feld beschreiben.
+ * Uhrzeiten und Spaltenköpfe gelten für alle Tage (`day` = null); leer bzw. gelöscht = Voreinstellung.
+ */
+export interface TimetableCell extends BaseRecord {
+  /** 1 = Montag … 5 = Freitag; null = gilt für alle Tage (Uhrzeit, Spaltenkopf) */
+  day: number | null
+  /** 0 … 8 (8 bis 16 Uhr); -1 = Spaltenkopf */
+  row: number
+  /** 'time' = Uhrzeit, 'a'/'b' = linke/rechte Spalte */
+  column: 'time' | 'a' | 'b'
+  text: string
+}
+
 export interface NotifySettings {
   newTask: boolean
   assignedToMe: boolean
@@ -227,6 +242,8 @@ export interface DataFile {
   /** Essensplaner: Gerichte und Mittagessen (seit v1.9.0); fehlen in älteren Dateien */
   recipes: Recipe[]
   meals: Meal[]
+  /** Stundenplan (seit v1.10.0); fehlt in älteren Dateien */
+  timetable: TimetableCell[]
   devices: Device[]
 }
 
@@ -242,6 +259,7 @@ export const COLLECTIONS = [
   'notes',
   'recipes',
   'meals',
+  'timetable',
   'devices',
 ] as const
 

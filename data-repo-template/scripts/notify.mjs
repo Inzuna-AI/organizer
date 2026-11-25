@@ -3278,6 +3278,7 @@ var COLLECTIONS = [
   "notes",
   "recipes",
   "meals",
+  "timetable",
   "devices"
 ];
 

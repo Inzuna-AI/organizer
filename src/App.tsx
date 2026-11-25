@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
+import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { Header } from '@/components/layout/Header'
 import { useGoBack } from '@/components/layout/useGoBack'
+import { Tabs } from '@/components/ui/Tabs'
 import { useAppStore } from '@/store'
 import { SetupPage } from '@/features/setup'
 import { SettingsPage } from '@/features/settings'
@@ -14,6 +15,7 @@ const CalendarPage = lazy(() => import('@/features/calendar').then((m) => ({ def
 import { ShoppingPage } from '@/features/shopping'
 import { NoteEditPage, NotesPage } from '@/features/notes'
 import { MealDayPage, MealShoppingPage, MealsPage, RecipeEditPage } from '@/features/meals'
+import { TimetableView } from '@/features/timetable'
 import { RoomsPage } from '@/features/rooms'
 import { PersonsPage } from '@/features/persons'
 import { SearchPage } from '@/features/search'
@@ -50,6 +52,35 @@ function parentOf(pathname: string): string | null {
   if (pathname.startsWith('/essen/')) return '/essen'
   const parts = pathname.split('/').filter(Boolean)
   return parts.length > 1 ? `/${parts.slice(0, -1).join('/')}` : null
+}
+
+/** Kalender mit zwei Reitern: Kalender (FullCalendar, erst bei Bedarf geladen) und Stundenplan */
+function CalendarSection() {
+  const [params, setParams] = useSearchParams()
+  const view = params.get('ansicht') === 'stundenplan' ? 'timetable' : 'calendar'
+  return (
+    <>
+      <div className="px-4 pt-4">
+        <Tabs
+          value={view}
+          options={[
+            { value: 'calendar', label: '📅 Kalender' },
+            { value: 'timetable', label: '🕗 Stundenplan' },
+          ]}
+          onChange={(v) => setParams(v === 'timetable' ? { ansicht: 'stundenplan' } : {}, { replace: true })}
+        />
+      </div>
+      {view === 'calendar' ? (
+        <Suspense fallback={<p className="p-8 text-center text-sm text-slate-500">Kalender wird geladen …</p>}>
+          <CalendarPage />
+        </Suspense>
+      ) : (
+        <div className="p-4">
+          <TimetableView />
+        </div>
+      )}
+    </>
+  )
 }
 
 function Shell() {
@@ -90,11 +121,7 @@ function Shell() {
           <Route path="/" element={<TodayPage />} />
           <Route
             path="/kalender"
-            element={
-              <Suspense fallback={<p className="p-8 text-center text-sm text-slate-500">Kalender wird geladen …</p>}>
-                <CalendarPage />
-              </Suspense>
-            }
+            element={<CalendarSection />}
           />
           <Route path="/aufgaben" element={<TasksPage />} />
           <Route path="/aufgaben/neu" element={<NewTaskPage />} />

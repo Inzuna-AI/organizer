@@ -236,7 +236,7 @@ export function CalendarPage() {
           timeZone="local"
           firstDay={1}
           headerToolbar={false}
-          height={view === 'dayGridMonth' ? 'auto' : 'calc(100dvh - 19rem)'}
+          height={view === 'dayGridMonth' ? 'auto' : 'calc(100dvh - 22.5rem)'}
           events={events}
           eventContent={EventContent}
           eventDisplay="block"

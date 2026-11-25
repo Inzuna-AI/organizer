@@ -49,6 +49,7 @@ export function createInitialData(names: string[]): DataFile {
     notes: [],
     recipes: [],
     meals: [],
+    timetable: [],
     devices: [],
   }
 }
