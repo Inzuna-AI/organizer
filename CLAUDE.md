@@ -175,6 +175,7 @@ Jeder Datensatz hat `id` (UUID), `updatedAt` (ISO-Zeitstempel), `deleted` (bool)
 - `recipes` und `meals` (Essensplaner, seit v1.9.0, kein Schema-Wechsel, fehlen in älteren Dateien; `normalizeData` ergänzt `[]`):
   - `recipes[]`: `title`, `ingredients` (`[{ id, name, quantity }]`, Menge als Text), `note`, `link`, `speed` und `effort` (`1` | `2` | `3` | `null` = schnell/leicht … dauert/aufwendig), `side` (Sättigungsbeilage) und `kind` (Fleisch, Fisch, vegetarisch …) als Text oder `null`, `favorite`, optional `soon` (Merkliste „Bald mal wieder“: ISO-Zeitpunkt des Merkens, fehlt/`null` = nicht gemerkt).
   - `meals[]`: nur Mittagessen. `id` deterministisch `mittag:<JJJJ-MM-TT>`, `date`, `recipeId` (oder `null`) bzw. Freitext `text`, `note`. „Nichts geplant“ = Tombstone.
+- `timetable` (Stundenplan, seit v1.10.0, kein Schema-Wechsel, fehlt in älteren Dateien): ein Datensatz pro beschriftetem Feld, `day` (`1`–`5` = Mo–Fr, `null` = für alle Tage), `row` (`0`–`8` = 8 bis 16 Uhr, `-1` = Spaltenkopf), `column` (`time` | `a` | `b`), `text`. `id` deterministisch `stundenplan:<tag|alle>:<zeile|kopf>:<spalte>`. Leer oder wie voreingestellt = Tombstone. Ohne Personenbezug (Spaltenköpfe sind nur Text).
 - `shoppingItems[].later` (optional, seit v1.7.0): `true` = liegt unter „Nächster Einkauf“. Fehlt/`false` = aktuelle Liste.
 - `tasks[].period` (optional, seit v1.4.0): `week` | `month` | `quarter` | `half` | `year` = Aufgabe mit Zeitraum statt festem Tag. `startAt` ist dann der erste Tag des Zeitraums (ganztägig), eine Serie hat `FREQ=WEEKLY;BYDAY=MO` bzw. `FREQ=MONTHLY;INTERVAL=<Monate>`. Fehlt/`null` = fester Tag.
 - `devices[].notify.dueReminder`: Erinnerungen auf diesem Gerät an/aus. `dueReminderMinutesBefore` wird seit v1.3.0 nicht mehr verwendet. `quietHours` kann `null` sein (keine Ruhezeiten).
@@ -334,6 +335,7 @@ organizer/
 │   │   ├── today/                 # Heute-Ansicht
 │   │   ├── tasks/                 # Aufgabenliste, Formular, Checklisten, Inbox
 │   │   ├── calendar/              # FullCalendar-Ansichten, Drag and Drop
+│   │   ├── timetable/             # Stundenplan Mo–Fr (Reiter im Kalender, /kalender?ansicht=stundenplan)
 │   │   ├── events/                # Termine: Formular, Personen, Serien (/termine/neu, /termine/:id)
 │   │   ├── rooms/                 # Räume verwalten, Farbauswahl
 │   │   ├── shopping/              # Einkaufszettel: Listen, Artikel, Vorschläge
@@ -609,6 +611,16 @@ Hinweise zur Umsetzung:
 - Zutaten einkaufen: `collectIngredients` fasst gleiche Namen zusammen, Mengen mit „ + “. Was schon offen auf der Liste steht, ist abgewählt. Hinzufügen über `shoppingActions.add` (holt Abgehaktes zurück, keine Dubletten), optional „Für den nächsten Einkauf“. Gewählte Liste: Pref `mealsShoppingList`; Filter der Gerichte-Ansicht: Pref `mealsFilter`.
 - Heute: neuer sortierbarer Abschnitt `meal`, nur sichtbar, wenn es Gerichte oder Planungen für heute/morgen gibt.
 - Keine Push-Benachrichtigungen; `notify.mjs` kennt die neuen Sammlungen nur in `COLLECTIONS`.
+
+### Stundenplan (`v1.10.0`)
+- [x] Kalender mit Reitern „Kalender“ und „Stundenplan“ (gemeinsamer Baustein `components/ui/Tabs.tsx`, auch im Essensplaner)
+- [x] Stundenplan Mo–Fr, 9 Zeilen ab 8 Uhr, Spalten Uhrzeit, Lena, Christoph; Uhrzeiten und Spaltenköpfe voreingestellt, aber änderbar
+- [x] Essensplaner: Zutaten beginnen beim Tippen mit Großbuchstaben (`capitalizeFirst`)
+
+Hinweise zur Umsetzung:
+- Feature `timetable` (Logik `utils.ts`, `setCell` in `store.ts`, Ansicht `TimetableView`). Die Reiter stecken in `CalendarSection` in `App.tsx`, damit FullCalendar nur beim Reiter „Kalender“ geladen wird. `?ansicht=stundenplan` wählt den Stundenplan.
+- Felder speichern beim Verlassen bzw. Enter; Änderungen vom anderen Gerät werden übernommen, solange das Feld nicht fokussiert ist. Startet beim heutigen Wochentag (Wochenende: Montag).
+- Uhrzeiten und Spaltenköpfe sind für alle Tage gleich (`day: null`). Keine Push-Benachrichtigungen; `notify.mjs` kennt `timetable` nur in `COLLECTIONS`.
 
 ### Später / optional
 - **App-Badge** (Zahl am Homescreen-Symbol) für fällige Aufgaben, ohne Zeitraum-Aufgaben. Besprochen am 20.11.2026, zurückgestellt. Idee: `navigator.setAppBadge` in der App bei Änderungen, im Service Worker aus der Push-Payload (Zahl pro Person von `notify.mjs`). iPhone ab iOS 16.4 (Homescreen + Push-Berechtigung, keine stillen Pushes); Samsung/Chrome zeigt nur die Zahl ungelesener Benachrichtigungen. Offen: Termine mitzählen? Nur meine oder alle? Schalter pro Gerät
