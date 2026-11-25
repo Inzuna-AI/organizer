@@ -3,6 +3,15 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.10.0] – 2026-11-25
+
+### Neu
+- Kalender mit zwei Reitern: „📅 Kalender“ (wie bisher) und „🕗 Stundenplan“
+- Stundenplan Montag bis Freitag: 9 Stunden ab 8 Uhr, Spalten „Lena“ und „Christoph“. Jedes Feld lässt sich antippen und beschriften, wird synchronisiert. Uhrzeiten und Spaltenköpfe sind voreingestellt, aber änderbar (gelten für alle Tage, leeren stellt die Voreinstellung wieder her)
+
+### Geändert
+- Essensplaner: Zutaten beginnen beim Eintippen automatisch mit einem Großbuchstaben
+
 ## [1.9.3] – 2026-11-23
 
 ### Neu
