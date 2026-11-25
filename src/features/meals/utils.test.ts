@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Meal, Recipe } from '@/types/data'
 import {
+  capitalizeFirst,
   categoryOptions,
   cleanRecipe,
   collectIngredients,
@@ -72,6 +73,14 @@ describe('Kategorien', () => {
     expect(kindIcon('Geflügel')).toBe('🍗')
     expect(kindIcon('Wild')).toBe('')
     expect(kindIcon(null)).toBe('')
+  })
+
+  it('capitalizeFirst: erster Buchstabe groß', () => {
+    expect(capitalizeFirst('zwiebeln')).toBe('Zwiebeln')
+    expect(capitalizeFirst('äpfel')).toBe('Äpfel')
+    expect(capitalizeFirst(' ei')).toBe(' Ei')
+    expect(capitalizeFirst('500g Hack')).toBe('500g Hack')
+    expect(capitalizeFirst('')).toBe('')
   })
 
   it('cleanRecipe trimmt und entfernt leere Zutaten', () => {

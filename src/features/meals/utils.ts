@@ -74,6 +74,11 @@ export const EMPTY_RECIPE: RecipeDraft = {
   soon: null,
 }
 
+/** Erster Buchstabe groß (Zutaten beim Eintippen), führende Leerzeichen bleiben */
+export function capitalizeFirst(text: string): string {
+  return text.replace(/^(\s*)(\S)/, (_, space: string, first: string) => space + first.toLocaleUpperCase('de'))
+}
+
 /** Leere Zutaten entfernen, Texte trimmen */
 export function cleanIngredients(list: Ingredient[]): Ingredient[] {
   return list

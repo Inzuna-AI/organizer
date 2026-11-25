@@ -6,6 +6,7 @@ import { Chip } from '@/components/ui/Chip'
 import { recipeActions } from '../store'
 import {
   activeFilterCount,
+  capitalizeFirst,
   EFFORT_LABELS,
   kindIcon,
   lastEatenLabel,
@@ -375,7 +376,8 @@ export function IngredientEditor({ items, onChange }: { items: Ingredient[]; onC
               <input
                 ref={register(`${i.id}:name`)}
                 value={i.name}
-                onChange={(e) => update(i.id, { name: e.target.value })}
+                onChange={(e) => update(i.id, { name: capitalizeFirst(e.target.value) })}
+                autoCapitalize="sentences"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
