@@ -14,6 +14,7 @@ import { usePersonMap, usePersons } from '@/features/persons'
 import { useRoomMap } from '@/features/rooms'
 import { ChoiceDialog } from '@/components/ui/ChoiceDialog'
 import { FabChoice } from '@/components/ui/FabChoice'
+import { useMouse, useWide } from '@/components/layout/useWide'
 import { isInbox, taskActions, useAllTasks, useOccurrences, type TaskInstance } from '@/features/tasks'
 import { eventActions, useEventsBetween } from '@/features/events'
 import { EventContent } from './components/EventContent'
@@ -73,6 +74,9 @@ export function CalendarPage() {
   /** Angetippter freier Platz: Termin oder Aufgabe anlegen? */
   const [pendingNew, setPendingNew] = useState<URLSearchParams | null>(null)
   const personList = usePersons()
+  // PC: Inbox als Spalte rechts, Kalender höher, Hinweise für die Maus
+  const wide = useWide()
+  const mouse = useMouse()
 
   const ctx = useMemo(() => ({ mode, rooms, persons }), [mode, rooms, persons])
   const calEvents = useEventsBetween(range?.from ?? '', range?.to ?? '')
@@ -148,7 +152,13 @@ export function CalendarPage() {
     const change = moveChange(arg.event.start, arg.event.allDay, arg.event.end)
     if (p.kind === 'event') {
       if (p.date) {
-        setPendingMove({ kind: 'event', id: p.eventId, date: p.date, startAt: change.startAt, revert: arg.revert })
+        setPendingMove({
+          kind: 'event',
+          id: p.eventId,
+          date: p.date,
+          startAt: change.startAt,
+          revert: arg.revert,
+        })
         return
       }
       // Wechsel ganztägig ↔ Uhrzeit: Standardlänge; sonst Länge behalten
@@ -156,7 +166,13 @@ export function CalendarPage() {
       return
     }
     if (p.fixedSeries && p.occurrenceDate) {
-      setPendingMove({ kind: 'task', id: p.taskId, date: p.occurrenceDate, startAt: change.startAt, revert: arg.revert })
+      setPendingMove({
+        kind: 'task',
+        id: p.taskId,
+        date: p.occurrenceDate,
+        startAt: change.startAt,
+        revert: arg.revert,
+      })
       return
     }
     taskActions.save(p.taskId, change)
@@ -200,82 +216,100 @@ export function CalendarPage() {
   const colorOf = (t: TaskInstance) => eventColor(t, ctx)
 
   return (
-    <div className="organizer-calendar space-y-3 p-4">
-      <div className="flex items-center gap-2">
-        <div className="flex">
-          <NavButton label="Zurück" onClick={() => api()?.prev()}>
-            ‹
-          </NavButton>
-          <NavButton label="Weiter" onClick={() => api()?.next()}>
-            ›
-          </NavButton>
+    <div className="organizer-calendar p-4 lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-4 lg:px-4">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="flex">
+            <NavButton label="Zurück" onClick={() => api()?.prev()}>
+              ‹
+            </NavButton>
+            <NavButton label="Weiter" onClick={() => api()?.next()}>
+              ›
+            </NavButton>
+          </div>
+          <h2 className="min-w-0 flex-1 truncate text-base font-semibold">{title}</h2>
+          <button
+            type="button"
+            onClick={() => api()?.today()}
+            className="min-h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium active:bg-slate-100"
+          >
+            Heute
+          </button>
         </div>
-        <h2 className="min-w-0 flex-1 truncate text-base font-semibold">{title}</h2>
-        <button
-          type="button"
-          onClick={() => api()?.today()}
-          className="min-h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium active:bg-slate-100"
-        >
-          Heute
-        </button>
+
+        <div className="flex gap-2">
+          <Segmented options={VIEWS} value={view} onChange={setView} label="Ansicht" className="flex-1" />
+          <Segmented options={COLOR_MODES} value={mode} onChange={setMode} label="Farbe nach" />
+        </div>
+
+        {!wide && <InboxStrip tasks={inbox} colorOf={colorOf} />}
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <FullCalendar
+            ref={calRef}
+            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+            initialView={view}
+            locale={deLocale}
+            timeZone="local"
+            firstDay={1}
+            headerToolbar={false}
+            height={view === 'dayGridMonth' ? 'auto' : wide ? 'max(32rem, calc(100dvh - 19rem))' : 'calc(100dvh - 22.5rem)'}
+            events={events}
+            eventContent={EventContent}
+            eventDisplay="block"
+            editable
+            droppable
+            longPressDelay={LONG_PRESS_MS}
+            eventLongPressDelay={LONG_PRESS_MS}
+            selectLongPressDelay={LONG_PRESS_MS}
+            dayMaxEvents={wide ? 6 : 3}
+            slotEventOverlap={false}
+            nowIndicator
+            scrollTime={SCROLL_TIME}
+            slotDuration="00:30:00"
+            snapDuration="00:15:00"
+            defaultTimedEventDuration="00:30:00"
+            allDayText="ganzt."
+            dayHeaderContent={DayHeader}
+            slotLabelFormat={{
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            }}
+            eventTimeFormat={{
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            }}
+            datesSet={onDatesSet}
+            dateClick={onDateClick}
+            eventClick={onEventClick}
+            eventDrop={onEventDrop}
+            eventResize={onEventResize}
+            eventReceive={onEventReceive}
+          />
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-5 rounded-[3px] bg-brand-700" aria-hidden="true" /> Termin
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-5 rounded-[3px] border border-l-4 border-brand-700 bg-brand-50" aria-hidden="true" /> ☐
+            Aufgabe
+          </span>
+        </div>
+        <p className="text-center text-xs text-slate-400">
+          {mouse
+            ? 'Klick auf einen freien Platz legt einen Termin oder eine Aufgabe an. Einträge mit der Maus verschieben, am unteren Rand in der Länge ziehen.'
+            : 'Tippen auf einen freien Platz legt einen Termin oder eine Aufgabe an. Zum Verschieben einen Eintrag lange drücken und ziehen.'}
+        </p>
       </div>
 
-      <div className="flex gap-2">
-        <Segmented options={VIEWS} value={view} onChange={setView} label="Ansicht" className="flex-1" />
-        <Segmented options={COLOR_MODES} value={mode} onChange={setMode} label="Farbe nach" />
-      </div>
-
-      <InboxStrip tasks={inbox} colorOf={colorOf} />
-
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <FullCalendar
-          ref={calRef}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView={view}
-          locale={deLocale}
-          timeZone="local"
-          firstDay={1}
-          headerToolbar={false}
-          height={view === 'dayGridMonth' ? 'auto' : 'calc(100dvh - 22.5rem)'}
-          events={events}
-          eventContent={EventContent}
-          eventDisplay="block"
-          editable
-          droppable
-          longPressDelay={LONG_PRESS_MS}
-          eventLongPressDelay={LONG_PRESS_MS}
-          selectLongPressDelay={LONG_PRESS_MS}
-          dayMaxEvents={3}
-          slotEventOverlap={false}
-          nowIndicator
-          scrollTime={SCROLL_TIME}
-          slotDuration="00:30:00"
-          snapDuration="00:15:00"
-          defaultTimedEventDuration="00:30:00"
-          allDayText="ganzt."
-          dayHeaderContent={DayHeader}
-          slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
-          eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
-          datesSet={onDatesSet}
-          dateClick={onDateClick}
-          eventClick={onEventClick}
-          eventDrop={onEventDrop}
-          eventResize={onEventResize}
-          eventReceive={onEventReceive}
-        />
-      </div>
-      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-5 rounded-[3px] bg-brand-700" aria-hidden="true" /> Termin
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-5 rounded-[3px] border border-l-4 border-brand-700 bg-brand-50" aria-hidden="true" /> ☐ Aufgabe
-        </span>
-      </div>
-      <p className="text-center text-xs text-slate-400">
-        Tippen auf einen freien Platz legt einen Termin oder eine Aufgabe an. Zum Verschieben einen Eintrag lange
-        drücken und ziehen.
-      </p>
+      {wide && (
+        <aside className="sticky top-[4.5rem]">
+          <InboxStrip tasks={inbox} colorOf={colorOf} vertical />
+        </aside>
+      )}
 
       <FabChoice
         label="Neuer Termin oder neue Aufgabe"
