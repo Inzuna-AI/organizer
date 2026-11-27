@@ -20,7 +20,7 @@ export function TaskFilters({ value, onChange }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Filter Person">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0" role="group" aria-label="Filter Person">
         <Chip active={value.mineOnly} onClick={() => set({ mineOnly: !value.mineOnly, personId: null })}>
           Meine Aufgaben
         </Chip>
@@ -35,7 +35,7 @@ export function TaskFilters({ value, onChange }: Props) {
           </Chip>
         ))}
       </div>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Filter Raum">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0" role="group" aria-label="Filter Raum">
         {rooms.map((r) => (
           <Chip
             key={r.id}

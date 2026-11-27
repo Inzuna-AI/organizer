@@ -766,7 +766,7 @@ export function MealShoppingPage() {
           </ul>
 
           {lists.length > 1 && (
-            <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4">
+            <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
               {lists.map((l) => (
                 <button
                   key={l.id}

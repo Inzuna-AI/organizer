@@ -231,7 +231,7 @@ function ChipRow<T extends string | number>({
   return (
     <div>
       <p className="mb-1 text-xs font-medium text-slate-500">{label}</p>
-      <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1">
+      <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
         {options.map((o) => (
           <Chip key={String(o.value)} active={value === o.value} onClick={() => onChange(value === o.value ? null : o.value)}>
             {o.label}

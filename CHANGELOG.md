@@ -14,6 +14,7 @@ Ein Eintrag ist die Beschreibung des GitHub Releases.
 
 ### Geändert
 - Mit der Maus: Zeiger und Hover-Hervorhebung auf Schaltflächen, Hinweistexte im Kalender für die Maus
+- Filter-Chips (Aufgaben, Gerichte, Einkaufslisten) brechen am PC in mehrere Zeilen um, statt seitlich zu scrollen
 
 ## [1.10.0] – 2026-11-25
 

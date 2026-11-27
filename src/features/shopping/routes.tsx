@@ -106,7 +106,7 @@ export function ShoppingPage() {
 
   return (
     <div className="space-y-4 p-4">
-      <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Listen">
+      <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0" role="group" aria-label="Listen">
         {lists.map((l) => (
           <Chip key={l.id} active={l.id === listId} onClick={() => select(l.id)}>
             {l.name}
