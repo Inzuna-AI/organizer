@@ -64,8 +64,7 @@ export function NotesPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed right-20 left-4 z-30 mx-auto flex max-w-md items-center gap-3 rounded-xl bg-slate-800 py-2 pr-2 pl-4 text-sm text-white shadow-lg dark:bg-slate-200"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 4.75rem)' }}
+            className="bottom-above-nav fixed right-20 left-4 z-30 mx-auto lg:left-60 flex max-w-md items-center gap-3 rounded-xl bg-slate-800 py-2 pr-2 pl-4 text-sm text-white shadow-lg dark:bg-slate-200"
           >
             <span className="min-w-0 flex-1 truncate">„{undo.title}“ gelöscht</span>
             <button
@@ -90,7 +89,7 @@ function NoteGrid({ title, notes }: { title?: string; notes: Note[] }) {
   return (
     <section>
       {title && <h2 className="mb-2 text-sm font-semibold text-slate-500">{title}</h2>}
-      <ul className="grid grid-cols-2 items-start gap-3">
+      <ul className="grid grid-cols-2 items-start gap-3 lg:grid-cols-3 xl:grid-cols-4">
         {notes.map((n) => (
           <li key={n.id}>
             <NoteCard note={n} />

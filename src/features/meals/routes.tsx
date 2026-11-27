@@ -162,7 +162,7 @@ function WeekView() {
         </button>
       </div>
 
-      <ul className="space-y-2">
+      <ul className="space-y-2 lg:grid lg:grid-flow-col lg:grid-cols-2 lg:grid-rows-4 lg:gap-2 lg:space-y-0">
         {days.map((date) => {
           const meal = byDate.get(date)
           const recipe = meal?.recipeId ? recipes.get(meal.recipeId) : null
@@ -244,8 +244,7 @@ function WeekView() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed right-4 left-4 z-30 mx-auto flex max-w-md items-center gap-3 rounded-xl bg-slate-800 py-2 pr-2 pl-4 text-sm text-white shadow-lg dark:bg-slate-200"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 4.75rem)' }}
+            className="bottom-above-nav fixed right-4 left-4 z-30 mx-auto lg:left-60 flex max-w-md items-center gap-3 rounded-xl bg-slate-800 py-2 pr-2 pl-4 text-sm text-white shadow-lg dark:bg-slate-200"
           >
             <span className="min-w-0 flex-1 truncate">„{undo.title}“ entfernt</span>
             <button
@@ -295,7 +294,7 @@ function RecipesView() {
           <p className="text-xs text-slate-500">
             {list.length === recipes.length ? `${recipes.length} Gerichte` : `${list.length} von ${recipes.length} Gerichten`}
           </p>
-          <ul className="space-y-2">
+          <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0 xl:grid-cols-3">
             {list.map((r) => (
               <RecipeRow key={r.id} recipe={r} usage={usage.get(r.id)} today={today} />
             ))}
@@ -456,7 +455,7 @@ export function MealDayPage() {
         {showSoon && (
           <div className="space-y-2">
             <p className="pt-1 text-xs font-semibold text-slate-500">🔖 Bald mal wieder</p>
-            <ul className="space-y-2">
+            <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
               {soon.map((r) => (
                 <RecipeRow key={r.id} recipe={r} usage={usage.get(r.id)} today={today} onSelect={() => choose(r.id)} />
               ))}
@@ -471,7 +470,7 @@ export function MealDayPage() {
         ) : list.length === 0 ? (
           <p className="py-4 text-center text-sm text-slate-500">Kein Gericht passt zu Suche und Filter.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
             {list.map((r) => (
               <RecipeRow
                 key={r.id}

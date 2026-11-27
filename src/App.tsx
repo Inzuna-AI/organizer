@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router'
-import { BottomNav } from '@/components/layout/BottomNav'
+import { BottomNav, SideNav } from '@/components/layout/BottomNav'
 import { Header } from '@/components/layout/Header'
 import { useGoBack } from '@/components/layout/useGoBack'
 import { Tabs } from '@/components/ui/Tabs'
@@ -54,6 +54,18 @@ function parentOf(pathname: string): string | null {
   return parts.length > 1 ? `/${parts.slice(0, -1).join('/')}` : null
 }
 
+/**
+ * Breite des Inhalts: auf dem Handy immer schmal (max-w-xl), am PC je nach Seite.
+ * Kalender nutzt die volle Breite, Übersichten mit Kacheln/Spalten viel, Formulare wenig.
+ */
+function pageWidth(pathname: string): string {
+  if (pathname === '/kalender') return 'lg:max-w-none'
+  if (pathname === '/' || pathname === '/notizen' || pathname === '/essen') return 'lg:max-w-6xl'
+  if (pathname === '/aufgaben' || pathname === '/einkauf' || pathname === '/suche' || pathname.startsWith('/essen/tag/'))
+    return 'lg:max-w-3xl'
+  return 'lg:max-w-2xl'
+}
+
 /** Kalender mit zwei Reitern: Kalender (FullCalendar, erst bei Bedarf geladen) und Stundenplan */
 function CalendarSection() {
   const [params, setParams] = useSearchParams()
@@ -101,7 +113,8 @@ function Shell() {
   const searchable = pathname === '/' || pathname === '/aufgaben' || pathname === '/kalender' || pathname === '/notizen' || pathname === '/essen'
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex min-h-full flex-col lg:pl-56">
+      <SideNav />
       <Header
         title={title}
         sync={sync}
@@ -116,7 +129,7 @@ function Shell() {
           {sync.error}
         </div>
       )}
-      <main className="mx-auto w-full max-w-xl flex-1 pb-24">
+      <main className={`mx-auto w-full max-w-xl flex-1 pb-24 lg:px-4 lg:pb-12 ${pageWidth(pathname)}`}>
         <Routes>
           <Route path="/" element={<TodayPage />} />
           <Route

@@ -20,7 +20,7 @@ export function Header({ title, sync, onRefresh, onBack, onSearch, onSettings, s
   const busy = sync.status === 'syncing' || sync.status === 'saving'
   return (
     <header className="pt-safe sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-xl items-center gap-1 px-4">
+      <div className="mx-auto flex h-14 max-w-xl items-center gap-1 px-4 lg:max-w-none lg:px-8">
         {onBack && (
           <button
             type="button"

@@ -88,3 +88,47 @@ input::-webkit-date-and-time-value {
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/*
+ * PC-Ansicht (ab 1024 px, Tailwind lg): Seitenleiste statt unterer Leiste.
+ * Schwebende Elemente (+, Rückgängig-Hinweise) sitzen dann unten am Rand.
+ */
+.bottom-above-nav {
+  bottom: calc(env(safe-area-inset-bottom) + 4.75rem);
+}
+@media (min-width: 1024px) {
+  .bottom-above-nav {
+    bottom: 1.5rem;
+  }
+}
+
+/* Maus: Zeiger auf Bedienelementen und Hover wie das Antippen (active:) */
+button:not(:disabled),
+[role='button'],
+summary,
+select {
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .active\:bg-slate-50:hover {
+    background-color: var(--color-slate-50);
+  }
+  .active\:bg-slate-100:hover {
+    background-color: var(--color-slate-100);
+  }
+  .active\:bg-slate-200:hover {
+    background-color: var(--color-slate-200);
+  }
+  .active\:bg-brand-50:hover {
+    background-color: var(--color-brand-50);
+  }
+  .active\:bg-brand-800:hover {
+    background-color: var(--color-brand-800);
+  }
+  .active\:bg-red-50:hover {
+    background-color: var(--color-red-50);
+  }
+  .active\:opacity-80:hover {
+    opacity: 0.85;
+  }
+}
