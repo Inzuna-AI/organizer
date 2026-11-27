@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -60,6 +60,12 @@ const SCROLL_TIME = '07:00:00'
 
 export function CalendarPage() {
   const navigate = useNavigate()
+  // Angezeigtes Datum steht in der URL (?datum=), damit „Zurück“ aus einem Eintrag wieder dorthin führt
+  const [params, setParams] = useSearchParams()
+  const [initialDate] = useState(() => {
+    const d = params.get('datum')
+    return d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : undefined
+  })
   const calRef = useRef<FullCalendar>(null)
   const tasks = useAllTasks()
   const occurrences = useOccurrences()
@@ -113,6 +119,21 @@ export function CalendarPage() {
     const from = toLocalString(arg.start, true)
     const to = toLocalString(new Date(arg.end.getTime() - 1), true)
     setRange((r) => (r?.from === from && r.to === to ? r : { from, to }))
+    // Zeitraum mit heute: kein Datum in der URL; sonst das aktuelle Datum der Ansicht merken
+    const now = Date.now()
+    const showsToday = arg.start.getTime() <= now && now < arg.end.getTime()
+    const date = showsToday ? null : toLocalString(arg.view.calendar.getDate(), true)
+    if (date !== params.get('datum')) {
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (date) next.set('datum', date)
+          else next.delete('datum')
+          return next
+        },
+        { replace: true },
+      )
+    }
   }
 
   function onDateClick(arg: DateClickArg) {
@@ -249,6 +270,7 @@ export function CalendarPage() {
             ref={calRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
             initialView={view}
+            initialDate={initialDate}
             locale={deLocale}
             timeZone="local"
             firstDay={1}

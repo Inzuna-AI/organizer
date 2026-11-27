@@ -631,6 +631,7 @@ Hinweise zur Umsetzung:
 - Breite pro Seite: `pageWidth` in `App.tsx` (Handy immer `max-w-xl`; PC: Kalender `none`, Heute/Notizen/Essen `6xl`, Listen `3xl`, Formulare/Einstellungen `2xl`). `SideNav` liegt neben `BottomNav` in `components/layout/BottomNav.tsx` (gleiche Einträge).
 - Wo sich nicht nur Klassen, sondern Aufbau ändert (Kalender-Inbox, Stundenplan), entscheidet `useWide()` aus `components/layout/useWide.ts` (gleiche Grenze 1024 px); `useMouse()` für Hinweistexte.
 - Schwebende Elemente (+, Rückgängig-Hinweise) nutzen die Klasse `bottom-above-nav` (`styles/index.css`), am PC sitzen sie unten am Rand. Neue Hinweise/Buttons dieser Art ebenfalls damit, Hinweise zusätzlich `lg:left-60`.
+- Kalender merkt das angezeigte Datum in der URL (`/kalender?datum=JJJJ-MM-TT`, `replace`; fehlt, solange der Zeitraum heute enthält). „Zurück“ aus Terminen/Aufgaben (Historie) landet so wieder dort; die Leiste öffnet `/kalender` = heute.
 - Hover: In `styles/index.css` bekommen die gängigen `active:bg-…`-Klassen bei Maus-Bedienung dieselbe Farbe als Hover; neue Komponenten brauchen meist kein eigenes `hover:`.
 
 ### Später / optional
