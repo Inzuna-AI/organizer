@@ -347,7 +347,7 @@ organizer/
 │   │   └── settings/              # Einstellungen, Dark Mode, Sync-Status
 │   ├── components/
 │   │   ├── ui/                    # Button, Modal, Badge, ColorPicker, ChecklistEditor, RecurrenceEditor, FabChoice …
-│   │   └── layout/                # BottomNav, Header, FAB („+“-Button), SyncIndicator
+│   │   └── layout/                # BottomNav + SideNav (PC), Header, SyncIndicator, useWide
 │   ├── store/                     # Nur Zusammenbau: verbindet die Feature-Stores mit dem Sync (+ initialData.ts)
 │   ├── lib/
 │   │   ├── github.ts              # GitHub-API: lesen (ETag), schreiben (SHA), Base64/UTF-8
@@ -622,14 +622,25 @@ Hinweise zur Umsetzung:
 - Felder speichern beim Verlassen bzw. Enter; Änderungen vom anderen Gerät werden übernommen, solange das Feld nicht fokussiert ist. Startet beim heutigen Wochentag (Wochenende: Montag).
 - Uhrzeiten und Spaltenköpfe sind für alle Tage gleich (`day: null`). Keine Push-Benachrichtigungen; `notify.mjs` kennt `timetable` nur in `COLLECTIONS`.
 
+### PC-Ansicht (`v1.11.0`)
+- [x] Ab 1024 px (Tailwind `lg:`) Seitenleiste statt unterer Leiste, Inhalt breiter; Handy unverändert, gleiche Daten und gleicher Sync
+- [x] Kalender volle Breite mit Inbox-Spalte, Stundenplan Mo–Fr nebeneinander, Heute zweispaltig, Notizen/Gerichte/Wochenplan als Raster
+- [x] Maus: Zeiger und Hover wie `active:`
+
+Hinweise zur Umsetzung:
+- Breite pro Seite: `pageWidth` in `App.tsx` (Handy immer `max-w-xl`; PC: Kalender `none`, Heute/Notizen/Essen `6xl`, Listen `3xl`, Formulare/Einstellungen `2xl`). `SideNav` liegt neben `BottomNav` in `components/layout/BottomNav.tsx` (gleiche Einträge).
+- Wo sich nicht nur Klassen, sondern Aufbau ändert (Kalender-Inbox, Stundenplan), entscheidet `useWide()` aus `components/layout/useWide.ts` (gleiche Grenze 1024 px); `useMouse()` für Hinweistexte.
+- Schwebende Elemente (+, Rückgängig-Hinweise) nutzen die Klasse `bottom-above-nav` (`styles/index.css`), am PC sitzen sie unten am Rand. Neue Hinweise/Buttons dieser Art ebenfalls damit, Hinweise zusätzlich `lg:left-60`.
+- Hover: In `styles/index.css` bekommen die gängigen `active:bg-…`-Klassen bei Maus-Bedienung dieselbe Farbe als Hover; neue Komponenten brauchen meist kein eigenes `hover:`.
+
 ### Später / optional
 - **App-Badge** (Zahl am Homescreen-Symbol) für fällige Aufgaben, ohne Zeitraum-Aufgaben. Besprochen am 20.11.2026, zurückgestellt. Idee: `navigator.setAppBadge` in der App bei Änderungen, im Service Worker aus der Push-Payload (Zahl pro Person von `notify.mjs`). iPhone ab iOS 16.4 (Homescreen + Push-Berechtigung, keine stillen Pushes); Samsung/Chrome zeigt nur die Zahl ungelesener Benachrichtigungen. Offen: Termine mitzählen? Nur meine oder alle? Schalter pro Gerät
 - Sync mit Google- oder Apple-Kalender (z. B. als ICS-Export)
 - Statistiken (erledigte Aufgaben pro Person/Raum)
 
 ## UI-Grundsätze
-- **Mobile first**: Die Hauptnutzung ist auf dem Handy, Desktop ist ein Bonus.
-- Untere Navigationsleiste: Heute · Kalender · Aufgaben · Essen · Einkauf · Notizen
+- **Mobile first**: Die Hauptnutzung ist auf dem Handy. Am PC gibt es seit v1.11.0 eine angepasste Ansicht (siehe „PC-Ansicht“); Änderungen am Layout auf beiden Breiten prüfen.
+- Untere Navigationsleiste: Heute · Kalender · Aufgaben · Essen · Einkauf · Notizen (am PC ab 1024 px als Seitenleiste links)
 - Einstellungen: Zahnrad ganz rechts in der Kopfleiste, neben „Aktualisieren“ (seit v1.8.1)
 - Schnelles Anlegen über einen schwebenden „+“-Button
 - Sprache der Oberfläche: **Deutsch**, Datumsformat TT.MM.JJJJ, Woche beginnt am Montag, Zeitzone Europe/Berlin

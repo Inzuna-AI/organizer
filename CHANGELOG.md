@@ -3,6 +3,18 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.11.0] – 2026-11-27
+
+### Neu
+- PC-Ansicht: Ab einer Fensterbreite von 1024 px steht die Navigation als Seitenleiste links, der Inhalt nutzt die Breite. Auf dem Handy bleibt alles wie bisher. Daten und Synchronisation sind dieselben
+- Kalender am PC: volle Breite und höher, die Inbox steht als Spalte rechts daneben und lässt sich mit der Maus in den Kalender ziehen
+- Stundenplan am PC: Montag bis Freitag nebeneinander in einer Tabelle
+- Heute am PC: Abschnitte in zwei Spalten (erste Hälfte der Reihenfolge links)
+- Notizen, Gerichte und Wochenplan am PC als mehrspaltiges Raster
+
+### Geändert
+- Mit der Maus: Zeiger und Hover-Hervorhebung auf Schaltflächen, Hinweistexte im Kalender für die Maus
+
 ## [1.10.0] – 2026-11-25
 
 ### Neu
