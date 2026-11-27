@@ -56,7 +56,8 @@ interface PendingMove {
 type NewKind = 'event' | 'task'
 
 const LONG_PRESS_MS = 350
-const SCROLL_TIME = '07:00:00'
+// Woche/Tag öffnen bei 15 Uhr (der Nachmittag ist meist der relevante Teil)
+const SCROLL_TIME = '15:00:00'
 
 export function CalendarPage() {
   const navigate = useNavigate()

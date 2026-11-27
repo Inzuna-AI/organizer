@@ -472,7 +472,7 @@ Hinweise zur Umsetzung: Vorschläge stammen auch aus bereits entfernten Artikeln
 - [x] **Drag and Drop** zum Verschieben (Datum/Uhrzeit), auch aus der Inbox in den Kalender
 - [x] Auf dem Handy: Long-Press zum Ziehen, große Touch-Ziele
 
-Hinweise zur Umsetzung: Kürzel-Badges erscheinen in Woche und Tag; in der Monatsansicht ist dafür zu wenig Platz (dort „Farbe nach Person“ nutzen). Kalenderzeiten sind lokale Gerätezeit; `startAt` wird ohne Zeitzone als lokale Wandzeit gespeichert. Long-Press-Verzögerung 350 ms, Raster 15 Minuten. Ansicht und Farbmodus merkt sich das Gerät (`loadPref`). `tasksToEvents` löst Serien für den sichtbaren Zeitraum (`datesSet`) in einzelne Termine auf.
+Hinweise zur Umsetzung: Kürzel-Badges erscheinen in Woche und Tag; in der Monatsansicht ist dafür zu wenig Platz (dort „Farbe nach Person“ nutzen). Kalenderzeiten sind lokale Gerätezeit; `startAt` wird ohne Zeitzone als lokale Wandzeit gespeichert. Long-Press-Verzögerung 350 ms, Raster 15 Minuten. Woche/Tag öffnen bei 15 Uhr (`SCROLL_TIME`, seit v1.11.1). Ansicht und Farbmodus merkt sich das Gerät (`loadPref`). `tasksToEvents` löst Serien für den sichtbaren Zeitraum (`datesSet`) in einzelne Termine auf.
 
 ### Phase 4: Wiederholungen (`v0.4.0`, abgeschlossen am 19.11.2026)
 - [x] Wiederholungs-Editor mit den Mustern oben

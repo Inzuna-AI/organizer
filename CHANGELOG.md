@@ -3,6 +3,11 @@
 Alle Versionen des Organizers. Format: `## [Version] – Datum`, danach Neu / Geändert / Behoben.
 Ein Eintrag ist die Beschreibung des GitHub Releases.
 
+## [1.11.1] – 2026-11-27
+
+### Geändert
+- Kalender: Woche und Tag öffnen jetzt bei 15 Uhr statt bei 7 Uhr (nach oben scrollen zeigt weiterhin den Vormittag)
+
 ## [1.11.0] – 2026-11-27
 
 ### Neu
