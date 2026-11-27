@@ -143,6 +143,9 @@ export function TodayPage() {
     ),
   }
 
+  const visible = order.filter((k) => !!sections[k])
+  const leftCount = Math.ceil(visible.length / 2)
+
   return (
     <div className="space-y-5 p-4">
       <div className="flex items-end justify-between gap-3">
@@ -180,9 +183,16 @@ export function TodayPage() {
         </p>
       )}
 
-      {order.map((k) => (
-        <Fragment key={k}>{sections[k]}</Fragment>
-      ))}
+      {/* Handy: alle untereinander. PC: zwei Spalten, die erste Hälfte der Reihenfolge links */}
+      <div className="space-y-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
+        {[visible.slice(0, leftCount), visible.slice(leftCount)].map((col, i) => (
+          <div key={i} className="space-y-5">
+            {col.map((k) => (
+              <Fragment key={k}>{sections[k]}</Fragment>
+            ))}
+          </div>
+        ))}
+      </div>
 
       <div className="flex justify-center">
         <button

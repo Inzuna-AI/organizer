@@ -102,7 +102,7 @@ export function SearchPage() {
           {noteResult.length > 0 && (
             <section>
               <h2 className="mb-2 text-sm font-semibold text-slate-500">Notizen ({noteResult.length})</h2>
-              <ul className="grid grid-cols-2 items-start gap-3">
+              <ul className="grid grid-cols-2 items-start gap-3 lg:grid-cols-3">
                 {noteResult.map((n) => (
                   <li key={n.id}>
                     <NoteCard note={n} />

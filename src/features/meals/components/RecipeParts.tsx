@@ -103,7 +103,7 @@ export function RecipeRow({ recipe, usage, today, onSelect, selected, highlight 
       </div>
     </>
   )
-  const cls = `flex min-h-16 w-full items-center gap-2 rounded-2xl border bg-white py-2 pr-1 pl-4 text-left ${
+  const cls = `flex h-full min-h-16 w-full items-center gap-2 rounded-2xl border bg-white py-2 pr-1 pl-4 text-left ${
     selected ? 'border-brand-600 ring-2 ring-brand-100' : highlight ? 'border-amber-400 ring-2 ring-amber-200' : 'border-slate-200'
   }`
   return (
